@@ -548,6 +548,12 @@ var µ = function() {
                     if (option[1] === "on") {
                         result.showGridPoints = true;
                     }
+                } else if ((option = /^levitation=(\w+)$/.exec(segment))) {
+                    result.levitation = option[1];
+                } else if ((option = /^u=(\w+)$/.exec(segment))) {
+                    result.u = option[1];
+                } else if ((option = /^v=(\w+)$/.exec(segment))) {
+                    result.v = option[1];
                 }
             });
         }
@@ -573,7 +579,10 @@ var µ = function() {
             var proj = [attr.projection, attr.orientation].filter(isTruthy).join("=");
             var ol = !isValue(attr.overlayType) || attr.overlayType === "default" ? "" : "overlay=" + attr.overlayType;
             var grid = attr.showGridPoints ? "grid=on" : "";
-            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid].filter(isTruthy).join("/");
+            var levitation = (attr.levitation && attr.levitation !== 'lev' ? `levitation=${attr.levitation}` : "");
+            var u = (attr.u && attr.u !== 'u' ? `u=${attr.u}` : "");
+            var v = (attr.v && attr.v !== 'v' ? `v=${attr.v}` : "");
+            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, levitation, u, v].filter(isTruthy).join("/");
         },
 
         /**

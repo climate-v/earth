@@ -934,7 +934,7 @@
             var changed = _.keys(configuration.changedAttributes()), rebuildRequired = false;
 
             // Build a new grid if any layer-related attributes have changed.
-            if (_.intersection(changed, ["date", "hour", "param", "surface", "level"]).length > 0) {
+            if (_.intersection(changed, ["date", "hour", "param", "surface", "level", "levitation", "u", "v"]).length > 0) {
                 rebuildRequired = true;
             }
             // Build a new grid if the new overlay type is different from the current one.
