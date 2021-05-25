@@ -27,9 +27,27 @@ var products = function() {
             },
             load: function(cancel) {
                 var me = this;
-                return when.map(this.paths, µ.loadJson).then(function(files) {
+                return when.map(this.paths, this.fetch).then(responses => {
+                    return when.map(responses, me.parse);
+                }).then(function(files) {
                     return cancel.requested ? null : _.extend(me, buildGrid(me.builder.apply(me, files)));
                 });
+            },
+            fetch: function(path) {
+                return when(fetch(path).then(response => {
+                    if(!response.ok) {
+                        throw {
+                            status: response.status,
+                            message: response.statusText,
+                            resource: path
+                        }
+                    } else {
+                        return response;
+                    }
+                }));
+            },
+            parse: function(response) {
+                return when(response.json());
             }
         }, overrides);
     }
