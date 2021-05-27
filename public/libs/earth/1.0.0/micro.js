@@ -640,6 +640,14 @@ var µ = function() {
         return result;
     }
 
+    function floatToDate(floatValue) {
+        const valueWithoutTime = Math.floor(floatValue);
+        const day = valueWithoutTime % 100;
+        const month = ((valueWithoutTime - day) / 100) % 100;
+        const year = (valueWithoutTime - (month * 100 + day)) / 10000;
+        return new Date(year, month - 1, day);
+    }
+
     return {
         isTruthy: isTruthy,
         isValue: isValue,
@@ -659,6 +667,7 @@ var µ = function() {
         ymdRedelimit: ymdRedelimit,
         dateToUTCymd: dateToUTCymd,
         dateToConfig: dateToConfig,
+        floatToDate,
         log: log,
         view: view,
         removeChildren: removeChildren,
