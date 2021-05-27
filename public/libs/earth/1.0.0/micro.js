@@ -538,22 +538,33 @@ var µ = function() {
                         result.projection = option[1];                 // non-empty alphanumeric _
                         result.orientation = coalesce(option[3], "");  // comma delimited string of numbers, or ""
                     }
-                }
-                else if ((option = /^overlay=(\w+)$/.exec(segment))) {
-                    if (overlayTypes.has(option[1]) || option[1] === "default") {
-                        result.overlayType = option[1];
+                } else if((option = /^(\w+)=([^/]+)$/.exec(segment))) {
+                    const name = option[1];
+                    const value = option[2];
+                    switch(name) {
+                        case 'overlay':
+                            if (overlayTypes.has(value) || value === "default") {
+                                result.overlayType = value;
+                            }
+                            break;
+                        case 'grid':
+                            if (value === "on") {
+                                result.showGridPoints = true;
+                            }
+                            break;
+                        case 'levitation':
+                            result.levitation = value;
+                            break;
+                        case 'u':
+                            result.u = value;
+                            break;
+                        case 'v':
+                            result.v = value;
+                            break;
+                        case 'filename':
+                            result.file = value;
+                            break;
                     }
-                }
-                else if ((option = /^grid=(\w+)$/.exec(segment))) {
-                    if (option[1] === "on") {
-                        result.showGridPoints = true;
-                    }
-                } else if ((option = /^levitation=(\w+)$/.exec(segment))) {
-                    result.levitation = option[1];
-                } else if ((option = /^u=(\w+)$/.exec(segment))) {
-                    result.u = option[1];
-                } else if ((option = /^v=(\w+)$/.exec(segment))) {
-                    result.v = option[1];
                 }
             });
         }
@@ -582,7 +593,8 @@ var µ = function() {
             var levitation = (attr.levitation && attr.levitation !== 'lev' ? `levitation=${attr.levitation}` : "");
             var u = (attr.u && attr.u !== 'u' ? `u=${attr.u}` : "");
             var v = (attr.v && attr.v !== 'v' ? `v=${attr.v}` : "");
-            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, levitation, u, v].filter(isTruthy).join("/");
+            var filename = (attr.file && attr.file !== "" ? `filename=${attr.file}` : "");
+            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, levitation, u, v, filename].filter(isTruthy).join("/");
         },
 
         /**
