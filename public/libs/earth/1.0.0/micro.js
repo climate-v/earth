@@ -13,6 +13,7 @@ var µ = function() {
     var H = 0.0000360;  // 0.0000360°φ ~= 4m
     var DEFAULT_CONFIG = "current/wind/surface/level/orthographic";
     var TOPOLOGY = isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/earth-topo.json?v2";
+    const DAY_IN_SECONDS = 24 * 60 * 60;
 
     /**
      * @returns {Boolean} true if the specified value is truthy.
@@ -642,10 +643,13 @@ var µ = function() {
 
     function floatToDate(floatValue) {
         const valueWithoutTime = Math.floor(floatValue);
+        const dayPercentage = floatValue - valueWithoutTime;
         const day = valueWithoutTime % 100;
         const month = ((valueWithoutTime - day) / 100) % 100;
         const year = (valueWithoutTime - (month * 100 + day)) / 10000;
-        return new Date(year, month - 1, day);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        date.setSeconds(Math.floor(DAY_IN_SECONDS * dayPercentage));
+        return date;
     }
 
     return {
