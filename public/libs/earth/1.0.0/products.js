@@ -135,23 +135,52 @@ var products = function() {
         }
     }
 
-    function findLevitationDimension(dimensions) {
-        const filtered = dimensions.filter(dimension => {
-            const unit = api.getVariableStringAttribute(dimension, 'units');
-            return LEVITATION_UNITS.includes(unit);
-        });
-        if(filtered.length === 1) {
-            return filtered[0];
+    function filterMatchingVariableWithUnit(dimensions, unit) {
+        let filter;
+        if(typeof unit === 'string') {
+            filter = (x) => x === unit;
+        } else {
+            filter = (x) => unit.includes(x);
         }
-        return null;
+
+        return dimensions.find(dimension => {
+            const unit = api.getVariableStringAttribute(dimension, 'units');
+            return filter(unit);
+        });
     }
 
-    function findUDimension(dimensions) {
-        return dimensions.find(dimension => dimension.startsWith('lat'));
+    function filterMatchingVariableWithStandardName(variables, name) {
+        let filter;
+        if(typeof name === 'string') {
+            filter = (x) => x === name;
+        } else {
+            filter = (x) => name.includes(x);
+        }
+
+        return variables.find(variable => {
+            const standardName = api.getVariableStringAttribute(variable, 'standard_name');
+            return filter(standardName);
+        });
     }
 
-    function findVDimension(dimensions) {
-        return dimensions.find(dimension => dimension.startsWith('lon'));
+    function findLevitationDimension(dimensions) {
+        return filterMatchingVariableWithUnit(dimensions, LEVITATION_UNITS);
+    }
+
+    function findLatDimension(dimensions) {
+        return filterMatchingVariableWithUnit(dimensions, 'degrees_north');
+    }
+
+    function findLonDimension(dimensions) {
+        return filterMatchingVariableWithUnit(dimensions, 'degrees_east');
+    }
+
+    function findUWindVariable(variables) {
+        return filterMatchingVariableWithStandardName(variables, 'eastward_wind');
+    }
+
+    function findVWindVariable(variables) {
+        return filterMatchingVariableWithStandardName(variables, 'northward_wind');
     }
 
     var FACTORIES = {
@@ -217,34 +246,25 @@ var products = function() {
                     },
                     builder: function(file) {
                         const dimensions = api.getDimensions().split(',');
+                        const variables = api.getVariables().split(',');
                         const config = {
                             levitation: findLevitationDimension(dimensions),
-                            latitude: 'lat', // TODO this should be variable
-                            longitude: 'lon',
-                            u: 'u',
-                            v: 'v'
+                            latitude: findLatDimension(dimensions), // TODO this should be variable
+                            longitude: findLonDimension(dimensions),
+                            u: findUWindVariable(variables),
+                            v: findVWindVariable(variables)
                         };
 
-                        console.log("Metadata", config);
+                        console.debug("Metadata", config);
 
-                        if(config.levitation === "" || config.u === "" || config.v === "") {
-                            throw new Error("Could not determine a variable for levitation, u, or v.");
+                        for(let key in config) {
+                            if(config[key] == null) {
+                                throw new Error("Could not determine variable for " + key);
+                            }
                         }
 
                         const levitationUnit = api.getVariableStringAttribute(config.levitation, 'units');
-                        let hPaToLocalUnit;
-                        switch(levitationUnit) {
-                            case "Pa":
-                                hPaToLocalUnit = (x) => x * 100;
-                                break;
-                            case "hPa":
-                                hPaToLocalUnit = (x) => x;
-                                break;
-                            default:
-                                // TODO allow meters
-                                hPaToLocalUnit = (x) => x;
-                                break;
-                        }
+                        const hPaToLocalUnit = µ.getPressureConversionFunction(levitationUnit);
 
                         let index;
                         const levitationValues = api.getAllVariableValuesF64(config.levitation);
@@ -288,8 +308,8 @@ var products = function() {
                         const date = µ.floatToDate(timeValue);
                         const centerName = api.getStringAttribute('institution');
 
-                        const lonValueRange = [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [720])];
-                        const latValueRange = [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [360])];
+                        const lonValueRange = [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])];
+                        const latValueRange = [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])];
 
                         file.close();
 

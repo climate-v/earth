@@ -553,15 +553,6 @@ var µ = function() {
                                 result.showGridPoints = true;
                             }
                             break;
-                        case 'levitation':
-                            result.levitation = value;
-                            break;
-                        case 'u':
-                            result.u = value;
-                            break;
-                        case 'v':
-                            result.v = value;
-                            break;
                         case 'filename':
                             result.file = value;
                             break;
@@ -591,11 +582,8 @@ var µ = function() {
             var proj = [attr.projection, attr.orientation].filter(isTruthy).join("=");
             var ol = !isValue(attr.overlayType) || attr.overlayType === "default" ? "" : "overlay=" + attr.overlayType;
             var grid = attr.showGridPoints ? "grid=on" : "";
-            var levitation = (attr.levitation && attr.levitation !== 'lev' ? `levitation=${attr.levitation}` : "");
-            var u = (attr.u && attr.u !== 'u' ? `u=${attr.u}` : "");
-            var v = (attr.v && attr.v !== 'v' ? `v=${attr.v}` : "");
             var filename = (attr.file && attr.file !== "" ? `filename=${attr.file}` : "");
-            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, levitation, u, v, filename].filter(isTruthy).join("/");
+            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, filename].filter(isTruthy).join("/");
         },
 
         /**
@@ -652,6 +640,17 @@ var µ = function() {
         return date;
     }
 
+    function getPressureConversionFunction(unit) {
+        switch(unit) {
+            case "Pa":
+                return (x) => x * 100;
+            case "hPa":
+                // TODO allow meters
+            default:
+                return (x) => x;
+        }
+    }
+
     return {
         isTruthy: isTruthy,
         isValue: isValue,
@@ -687,7 +686,8 @@ var µ = function() {
         distortion: distortion,
         newAgent: newAgent,
         parse: parse,
-        buildConfiguration: buildConfiguration
+        buildConfiguration: buildConfiguration,
+        getPressureConversionFunction
     };
 
 }();
