@@ -17,6 +17,12 @@ var products = function() {
         oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
     };
 
+    const LEVITATION_UNITS = [
+        "hPa",
+        "Pa",
+        "m"
+    ];
+
     function buildProduct(overrides) {
         return _.extend({
             description: "",
@@ -63,6 +69,10 @@ var products = function() {
         var dir = attr.date, stamp = dir === "current" ? "current" : attr.hour;
         var file = [stamp, type, surface, level, "gfs", "1.0"].filter(µ.isValue).join("-") + ".json";
         return [WEATHER_PATH, dir, file].join("/");
+    }
+
+    function ncPath(name) {
+        return [WEATHER_PATH, 'current', name + ".nc"].join("/");
     }
 
     function gfsDate(attr) {
@@ -125,8 +135,27 @@ var products = function() {
         }
     }
 
-    var FACTORIES = {
+    function findLevitationDimension(dimensions) {
+        const filtered = dimensions.filter(dimension => {
+            const unit = api.getVariableStringAttribute(dimension, 'units');
+            return LEVITATION_UNITS.includes(unit);
+        });
+        if(filtered.length === 1) {
+            return filtered[0];
+        }
+        return null;
+    }
 
+    function findUDimension(dimensions) {
+        return dimensions.find(dimension => dimension.startsWith('lat'));
+    }
+
+    function findVDimension(dimensions) {
+        return dimensions.find(dimension => dimension.startsWith('lon'));
+    }
+
+    var FACTORIES = {
+        /*
         "wind": {
             matches: _.matches({param: "wind"}),
             create: function(attr) {
@@ -146,6 +175,143 @@ var products = function() {
                             interpolate: bilinearInterpolateVector,
                             data: function(i) {
                                 return [uData[i], vData[i]];
+                            }
+                        }
+                    },
+                    units: [
+                        {label: "km/h", conversion: function(x) { return x * 3.6; },      precision: 0},
+                        {label: "m/s",  conversion: function(x) { return x; },            precision: 1},
+                        {label: "kn",   conversion: function(x) { return x * 1.943844; }, precision: 0},
+                        {label: "mph",  conversion: function(x) { return x * 2.236936; }, precision: 0}
+                    ],
+                    scale: {
+                        bounds: [0, 100],
+                        gradient: function(v, a) {
+                            return µ.extendedSinebowColor(Math.min(v, 100) / 100, a);
+                        }
+                    },
+                    particles: {velocityScale: 1/60000, maxIntensity: 17}
+                });
+            }
+        },
+        */
+
+        "wind": {
+            matches: _.matches({param: "wind"}),
+            create: function(attr) {
+                const filename = attr.file;
+                return buildProduct({
+                    field: "vector",
+                    type: "wind",
+                    description: localize({
+                        name: {en: "Wind - Custom", ja: "風速 - Custom"},
+                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                    }),
+                    paths: [ncPath(filename)],
+                    date: gfsDate(attr),
+                    parse: function(response) {
+                        return response.arrayBuffer().then(buffer => {
+                            const file = new NetCDFFile({type: 'buffer', ref: buffer, name: filename + ".nc"});
+                            return file.open().then(() => file);
+                        });
+                    },
+                    builder: function(file) {
+                        const dimensions = api.getDimensions().split(',');
+                        const config = {
+                            levitation: findLevitationDimension(dimensions),
+                            latitude: 'lat', // TODO this should be variable
+                            longitude: 'lon',
+                            u: 'u',
+                            v: 'v'
+                        };
+
+                        console.log("Metadata", config);
+
+                        if(config.levitation === "" || config.u === "" || config.v === "") {
+                            throw new Error("Could not determine a variable for levitation, u, or v.");
+                        }
+
+                        const levitationUnit = api.getVariableStringAttribute(config.levitation, 'units');
+                        let hPaToLocalUnit;
+                        switch(levitationUnit) {
+                            case "Pa":
+                                hPaToLocalUnit = (x) => x * 100;
+                                break;
+                            case "hPa":
+                                hPaToLocalUnit = (x) => x;
+                                break;
+                            default:
+                                // TODO allow meters
+                                hPaToLocalUnit = (x) => x;
+                                break;
+                        }
+
+                        let index;
+                        const levitationValues = api.getAllVariableValuesF64(config.levitation);
+                        if(attr.surface === 'surface') {
+                            let currentMax = 0;
+                            for(let i = 0; i < levitationValues.length; i++) {
+                                const value = levitationValues[i];
+                                if(value > currentMax) {
+                                    currentMax = value;
+                                    index = i;
+                                }
+                            }
+                        } else if (attr.surface === 'isobaric') {
+                            const givenLevel = attr.level.substr(0, attr.level.length - 3);
+                            const wantedValue = hPaToLocalUnit(parseInt(givenLevel)); // convert hPa to Pa
+                            index = levitationValues.findIndex(value => value == wantedValue); // TODO might need to handle cases where there's no _exact_ value, but close ones
+                        } else {
+                            throw new Error("Invalid surface type");
+                        }
+
+                        if(index === -1) {
+                            throw new Error("Could not find matching index for selected height.", {
+                                surface: attr.surface,
+                                height: attr.level
+                            });
+                        }
+
+                        const longitudeDimensionSize = api.getDimensionLength(config.longitude);
+                        const latitudeDimensionSize = api.getDimensionLength(config.latitude);
+
+                        let uValues = [];
+                        let vValues = [];
+                        try {
+                            vValues = api.getVariableValuesF32(config.v, [0, index, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                            uValues = api.getVariableValuesF32(config.u, [0, index, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        } catch(er) {
+                            throw new Error(`Error while loading u/v values at height index ${index}: ${er}`);
+                        }
+
+                        const timeValue = api.getVariableValueF64('time', [0]);
+                        const date = µ.floatToDate(timeValue);
+                        const centerName = api.getStringAttribute('institution');
+
+                        const lonValueRange = [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [720])];
+                        const latValueRange = [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [360])];
+
+                        file.close();
+
+                        return {
+                            header: {
+                                centerName,
+                                dx: 360 / longitudeDimensionSize,
+                                dy: 180 / latitudeDimensionSize,
+                                gridUnits: "degrees",
+                                refTime: date.toISOString(),
+                                forecastTime: 0, // maybe we should change this?
+                                la1: Math.max(...latValueRange),
+                                la2: Math.min(...latValueRange),
+                                flipped: latValueRange[0] < 0, // We need to set it 'flipped' if -90 is at the start
+                                lo1: lonValueRange[0],
+                                lo2: lonValueRange[1],
+                                nx: longitudeDimensionSize,
+                                ny: latitudeDimensionSize
+                            },
+                            interpolate: bilinearInterpolateVector,
+                            data: function(i) {
+                                return [uValues[i], vValues[i]]; // TODO u is upside down
                             }
                         }
                     },
@@ -634,7 +800,8 @@ var products = function() {
 
         // Scan mode 0 assumed. Longitude increases from λ0, and latitude decreases from φ0.
         // http://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_table3-4.shtml
-        var grid = [], p = 0;
+        let flipped = header.flipped || false;
+        var grid = new Array(nj), p = 0;
         var isContinuous = Math.floor(ni * Δλ) >= 360;
         for (var j = 0; j < nj; j++) {
             var row = [];
@@ -645,7 +812,12 @@ var products = function() {
                 // For wrapped grids, duplicate first column as last column to simplify interpolation logic
                 row.push(row[0]);
             }
-            grid[j] = row;
+            
+            if(flipped) {
+                grid[nj - j - 1] = row;
+            } else {
+                grid[j] = row;
+            }
         }
 
         function interpolate(λ, φ) {
