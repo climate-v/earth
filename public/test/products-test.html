@@ -10,7 +10,6 @@
     <script src="../libs/underscore.js/1.6.0/underscore.js"></script>
     <script src="../libs/backbone.js/1.1.0/backbone.js"></script>
     <script src="../libs/d3/3.3.10/d3.js"></script>
-    <script src="../libs/when/2.6.0/when.js"></script>
     <script src="../libs/earth/1.0.0/micro.js"></script>
     <script src="../libs/earth/1.0.0/grids.js"></script>
     <script src="../libs/earth/1.0.0/products.js"></script>
@@ -27,10 +26,10 @@
 
             var x = products.productsFor(cfg.attributes)[0];
 
-            when(x).then(function(x) {
+            Promise.resolve(x).then(function(_) {
                 ok(true);
                 start();
-            }).otherwise(µ.log().error);
+            }).catch(µ.log().error);
 
         });
 

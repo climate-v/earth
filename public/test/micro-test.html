@@ -10,7 +10,6 @@
     <script src="../libs/underscore.js/1.6.0/underscore.js"></script>
     <script src="../libs/backbone.js/1.1.0/backbone.js"></script>
     <script src="../libs/d3/3.3.10/d3.js"></script>
-    <script src="../libs/when/2.6.0/when.js"></script>
     <script src="../libs/earth/1.0.0/micro.js"></script>
 
     <script>
@@ -262,12 +261,12 @@
             agent.submit(function() {
                 var context = this;
                 ok(!context.cancel.requested);
-                var d = when.defer();
-                setTimeout(function() {
-                    ok(context.cancel.requested);
-                    d.resolve("ignored");
-                }, 20);
-                return d.promise;
+                return new Promise(resolve => {
+                    setTimeout(function() {
+                        ok(context.cancel.requested);
+                        resolve("ignored");
+                    }, 20);
+                });
             });
 
             setTimeout(function() {
@@ -296,7 +295,7 @@
 
             agent.submit(function(x) {
                 return x;
-            }, when(true).then(function() { return 10; }));  // argument is a promise
+            }, Promise.resolve().then(function() { return 10; }));  // argument is a promise
         });
 
         asyncTest("agent-exception-reject-event-emitting", 2, function() {
@@ -346,7 +345,7 @@
             });
 
             agent.submit(function() {
-                return when.reject("whoops!");
+                return Promise.reject("whoops!");
             });
         });
 
@@ -386,7 +385,7 @@
                 equal(context.value(), 0);
                 start();
             });
-            agent.submit(when.reject("darn it"));
+            agent.submit(Promise.reject("darn it"));
         });
 
     </script>

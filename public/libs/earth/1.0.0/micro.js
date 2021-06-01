@@ -321,15 +321,15 @@ var µ = function() {
      * object describing the reason: {status: http-status-code, message: http-status-text, resource:}.
      */
     function loadJson(resource) {
-        var d = when.defer();
-        d3.json(resource, function(error, result) {
-            return error ?
-                !error.status ?
-                    d.reject({status: -1, message: "Cannot load resource: " + resource, resource: resource}) :
-                    d.reject({status: error.status, message: error.statusText, resource: resource}) :
-                d.resolve(result);
+        return new Promise((resolve, reject) => {
+            d3.json(resource, function(error, result) {
+                return error ?
+                    !error.status ?
+                        reject({ status: -1, message: "Cannot load resource: " + resource, resource: resource }) :
+                        reject({ status: error.status, message: error.statusText, resource: resource }) :
+                    resolve(result);
+            });
         });
-        return d.promise;
     }
 
     /**
@@ -455,7 +455,7 @@ var µ = function() {
             try {
                 // When all arguments are resolved, invoke the task then either accept or reject the result.
                 var task = taskAndArguments[0];
-                when.all(_.rest(taskAndArguments)).then(run).then(accept, reject).done(undefined, fail);
+                Promise.all(_.rest(taskAndArguments)).then(run).then(accept, reject).then(undefined, fail);
                 agent.trigger("submit", agent);
             } catch (err) {
                 fail(err);
@@ -515,12 +515,12 @@ var µ = function() {
     function parse(hash, projectionNames, overlayTypes) {
         var option, result = {};
         //             1        2        3          4          5            6      7      8    9
-        var tokens = /^(current|(\d{4})\/(\d{1,2})\/(\d{1,2})\/(\d{3,4})Z)\/(\w+)\/(\w+)\/(\w+)([\/].+)?/.exec(hash);
+        const tokens = /^(current|(\d{4})\/(\d{1,2})\/(\d{1,2})\/(\d{3,4})Z)\/(\w+)\/(\w+)\/(\w+)([\/].+)?/.exec(hash);
         if (tokens) {
-            var date = tokens[1] === "current" ?
+            const date = tokens[1] === "current" ?
                 "current" :
                 tokens[2] + "/" + zeroPad(tokens[3], 2) + "/" + zeroPad(tokens[4], 2);
-            var hour = isValue(tokens[5]) ? zeroPad(tokens[5], 4) : "";
+            const hour = isValue(tokens[5]) ? zeroPad(tokens[5], 4) : "";
             result = {
                 date: date,                  // "current" or "yyyy/mm/dd"
                 hour: hour,                  // "hhhh" or ""

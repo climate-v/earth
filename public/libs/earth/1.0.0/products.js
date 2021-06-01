@@ -10,12 +10,12 @@ var products = function() {
     "use strict";
 
     var WEATHER_PATH = "/data/weather";
-    var OSCAR_PATH = "/data/oscar";
-    var catalogs = {
-        // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
-        // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
-        oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
-    };
+    // var OSCAR_PATH = "/data/oscar";
+    // var catalogs = {
+    //     // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
+    //     // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
+    //     oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
+    // };
 
     const LEVITATION_UNITS = [
         "hPa",
@@ -31,29 +31,8 @@ var products = function() {
             navigate: function(step) {
                 return gfsStep(this.date, step);
             },
-            load: function(cancel) {
-                var me = this;
-                return when.map(this.paths, this.fetch).then(responses => {
-                    return when.map(responses, me.parse);
-                }).then(function(files) {
-                    return cancel.requested ? null : _.extend(me, buildGrid(me.builder.apply(me, files)));
-                });
-            },
-            fetch: function(path) {
-                return when(fetch(path).then(response => {
-                    if(!response.ok) {
-                        throw {
-                            status: response.status,
-                            message: response.statusText,
-                            resource: path
-                        }
-                    } else {
-                        return response;
-                    }
-                }));
-            },
-            parse: function(response) {
-                return when(response.json());
+            build(file) {
+                return _.extend(this, buildGrid(this.builder.apply(this, [file])));
             }
         }, overrides);
     }
@@ -244,7 +223,7 @@ var products = function() {
                             return file.open().then(() => file);
                         });
                     },
-                    builder: function(file) {
+                    builder: function() {
                         const dimensions = api.getDimensions().split(',');
                         const variables = api.getVariables().split(',');
                         const config = {
@@ -280,7 +259,7 @@ var products = function() {
                         } else if (attr.surface === 'isobaric') {
                             const givenLevel = attr.level.substr(0, attr.level.length - 3);
                             const wantedValue = hPaToLocalUnit(parseInt(givenLevel)); // convert hPa to Pa
-                            index = levitationValues.findIndex(value => value == wantedValue); // TODO might need to handle cases where there's no _exact_ value, but close ones
+                            index = levitationValues.findIndex(value => value === wantedValue); // TODO might need to handle cases where there's no _exact_ value, but close ones
                         } else {
                             throw new Error("Invalid surface type");
                         }
@@ -310,8 +289,6 @@ var products = function() {
 
                         const lonValueRange = [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])];
                         const latValueRange = [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])];
-
-                        file.close();
 
                         return {
                             header: {
@@ -352,6 +329,7 @@ var products = function() {
             }
         },
 
+        /*
         "temp": {
             matches: _.matches({param: "wind", overlayType: "temp"}),
             create: function(attr) {
@@ -697,6 +675,7 @@ var products = function() {
                 });
             }
         },
+         */
 
         "off": {
             matches: _.matches({overlayType: "off"}),
@@ -832,7 +811,7 @@ var products = function() {
                 // For wrapped grids, duplicate first column as last column to simplify interpolation logic
                 row.push(row[0]);
             }
-            
+
             if(flipped) {
                 grid[nj - j - 1] = row;
             } else {
@@ -869,7 +848,7 @@ var products = function() {
                     }
                 }
             }
-            // console.log("cannot interpolate: " + λ + "," + φ + ": " + fi + " " + ci + " " + fj + " " + cj);
+            console.log("cannot interpolate: " + λ + "," + φ + ": " + fi + " " + ci + " " + fj + " " + cj);
             return null;
         }
 
@@ -878,9 +857,9 @@ var products = function() {
             date: date,
             interpolate: interpolate,
             forEachPoint: function(cb) {
-                for (var j = 0; j < nj; j++) {
-                    var row = grid[j] || [];
-                    for (var i = 0; i < ni; i++) {
+                for (let j = 0; j < nj; j++) {
+                    const row = grid[j] || [];
+                    for (let i = 0; i < ni; i++) {
                         cb(µ.floorMod(180 + λ0 + i * Δλ, 360) - 180, φ0 - j * Δφ, row[i]);
                     }
                 }
@@ -889,13 +868,11 @@ var products = function() {
     }
 
     function productsFor(attributes) {
-        var attr = _.clone(attributes), results = [];
-        _.values(FACTORIES).forEach(function(factory) {
-            if (factory.matches(attr)) {
-                results.push(factory.create(attr));
-            }
-        });
-        return results.filter(µ.isValue);
+        const attr = _.clone(attributes);
+        return _.values(FACTORIES)
+            .filter(factory => factory.matches(attr))
+            .map(factory => factory.create(attr))
+            .filter(µ.isValue);
     }
 
     return {
