@@ -126,15 +126,23 @@
             };
         }
 
-        var zoom = d3.behavior.zoom()
-            .on("zoomstart", function() {
-                op = op || newOp(d3.mouse(this), zoom.scale());  // a new operation begins
+        let ignoreZoom = false; // TODO this is ugly and prevents first interaction
+
+        const zoom = d3.zoom()
+            .on("start", function(ev) {
+                if(ignoreZoom) {
+                    return;
+                }
+                op = op || newOp(d3.pointer(ev, this), d3.zoomTransform(this).k);  // a new operation begins
             })
-            .on("zoom", function() {
-                var currentMouse = d3.mouse(this), currentScale = d3.event.scale;
+            .on("zoom", function(ev) {
+                if(ignoreZoom) {
+                    return;
+                }
+                const currentMouse = d3.pointer(ev, this), currentScale = ev.transform.k;
                 op = op || newOp(currentMouse, 1);  // Fix bug on some browsers where zoomstart fires out of order.
                 if(op.type === "click" || op.type === "spurious") {
-                    var distanceMoved = µ.distance(currentMouse, op.startMouse);
+                    const distanceMoved = µ.distance(currentMouse, op.startMouse);
                     if(currentScale === op.startScale && distanceMoved < MIN_MOVE) {
                         // to reduce annoyance, ignore op if mouse has barely moved and no zoom is occurring
                         op.type = distanceMoved > 0 ? "click" : "spurious";
@@ -143,7 +151,7 @@
                     dispatch.trigger("moveStart");
                     op.type = "drag";
                 }
-                if(currentScale != op.startScale) {
+                if(currentScale !== op.startScale) {
                     op.type = "zoom";  // whenever a scale change is detected, (stickily) switch to a zoom operation
                 }
 
@@ -151,7 +159,11 @@
                 op.manipulator.move(op.type === "zoom" ? null : currentMouse, currentScale);
                 dispatch.trigger("move");
             })
-            .on("zoomend", function() {
+            .on("end", function() {
+                if(ignoreZoom) {
+                    return;
+                }
+
                 op.manipulator.end();
                 if(op.type === "click") {
                     dispatch.trigger("click", op.startMouse, globe.projection.invert(op.startMouse) || []);
@@ -161,14 +173,15 @@
                 op = null;  // the drag/zoom/click operation is over
             });
 
-        var signalEnd = _.debounce(function() {
+        const signalEnd = _.debounce(function() {
             if(!op || op.type !== "drag" && op.type !== "zoom") {
                 configuration.save({ orientation: globe.orientation() }, { source: "moveEnd" });
                 dispatch.trigger("moveEnd");
             }
         }, MOVE_END_WAIT);  // wait for a bit to decide if user has stopped moving the globe
 
-        d3.select("#display").call(zoom);
+        const display = d3.select("#display");
+        display.call(zoom);
         d3.select("#show-location").on("click", function() {
             if(navigator.geolocation) {
                 report.status("Finding current position...");
@@ -185,7 +198,7 @@
         });
 
         function reorient() {
-            var options = arguments[3] || {};
+            const options = arguments[3] || {};
             if(!globe || options.source === "moveEnd") {
                 // reorientation occurred because the user just finished a move operation, so globe is already
                 // oriented correctly.
@@ -193,11 +206,13 @@
             }
             dispatch.trigger("moveStart");
             globe.orientation(configuration.get("orientation"), view);
-            zoom.scale(globe.projection.scale());
+            ignoreZoom = true;
+            zoom.scaleTo(display, globe.projection.scale());
+            ignoreZoom = false;
             dispatch.trigger("moveEnd");
         }
 
-        var dispatch = _.extend({
+        const dispatch = _.extend({
             globe: function(_) {
                 if(_) {
                     globe = _;
@@ -215,16 +230,16 @@
      * @returns {Object} a promise for GeoJSON topology features: {boundaryLo:, boundaryHi:}
      */
     function buildMesh(resource) {
-        var cancel = this.cancel;
+        const cancel = this.cancel;
         report.status("Downloading...");
         return µ.loadJson(resource).then(function(topo) {
             if(cancel.requested) return null;
             log.time("building meshes");
-            var o = topo.objects;
-            var coastLo = topojson.feature(topo, µ.isMobile() ? o.coastline_tiny : o.coastline_110m);
-            var coastHi = topojson.feature(topo, µ.isMobile() ? o.coastline_110m : o.coastline_50m);
-            var lakesLo = topojson.feature(topo, µ.isMobile() ? o.lakes_tiny : o.lakes_110m);
-            var lakesHi = topojson.feature(topo, µ.isMobile() ? o.lakes_110m : o.lakes_50m);
+            const o = topo.objects;
+            const coastLo = topojson.feature(topo, µ.isMobile() ? o.coastline_tiny : o.coastline_110m);
+            const coastHi = topojson.feature(topo, µ.isMobile() ? o.coastline_110m : o.coastline_50m);
+            const lakesLo = topojson.feature(topo, µ.isMobile() ? o.lakes_tiny : o.lakes_110m);
+            const lakesHi = topojson.feature(topo, µ.isMobile() ? o.lakes_110m : o.lakes_50m);
             log.timeEnd("building meshes");
             return {
                 coastLo: coastLo,
@@ -242,17 +257,7 @@
 
         report.status("Downloading...")
         const path = [WEATHER_PATH, 'current', filename + ".nc"].join("/")
-        return fetch(path).then(response => {
-            if(!response.ok) {
-                throw {
-                    status: response.status,
-                    message: response.statusText,
-                    resource: p
-                }
-            } else {
-                return response;
-            }
-        }).then(resp => {
+        return µ.fetchResource(path).then(resp => {
             return resp.arrayBuffer().then(buffer => {
                 const file = new NetCDFFile({ type: 'buffer', ref: buffer, name: filename + ".nc" });
                 return file.open().then(() => file);
@@ -313,7 +318,7 @@
         // Create new map svg elements.
         globe.defineMap(d3.select("#map"), d3.select("#foreground"));
 
-        const path = d3.geo.path().projection(globe.projection).pointRadius(7);
+        const path = d3.geoPath(globe.projection).pointRadius(7);
         const coastline = d3.select(".coastline");
         const lakes = d3.select(".lakes");
         d3.selectAll("path").attr("d", path);  // do an initial draw -- fixes issue with safari
@@ -578,8 +583,8 @@
         var fadeFillStyle = µ.isFF() ? "rgba(0, 0, 0, 0.95)" : "rgba(0, 0, 0, 0.97)";  // FF Mac alpha behaves oddly
 
         log.debug("particle count: " + particleCount);
-        var particles = [];
-        for(var i = 0; i < particleCount; i++) {
+        const particles = [];
+        for(let i = 0; i < particleCount; i++) {
             particles.push(field.randomize({ age: _.random(0, MAX_PARTICLE_AGE) }));
         }
 
@@ -615,13 +620,13 @@
             });
         }
 
-        var g = d3.select("#animation").node().getContext("2d");
+        const g = d3.select("#animation").node().getContext("2d");
         g.lineWidth = PARTICLE_LINE_WIDTH;
         g.fillStyle = fadeFillStyle;
 
         function draw() {
             // Fade existing particle trails.
-            var prev = g.globalCompositeOperation;
+            const prev = g.globalCompositeOperation;
             g.globalCompositeOperation = "destination-in";
             g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
             g.globalCompositeOperation = prev;
@@ -699,8 +704,8 @@
             }
 
             // Show tooltip on hover.
-            colorBar.on("mousemove", function() {
-                var x = d3.mouse(this)[0];
+            colorBar.on("mousemove", function(ev) {
+                var x = d3.pointer(ev, this)[0];
                 var pct = µ.clamp((Math.round(x) - 2) / (n - 2), 0, 1);
                 var value = µ.spread(pct, bounds[0], bounds[1]);
                 var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
@@ -1130,9 +1135,9 @@
         bindButtonToConfiguration("#overlay-currents", { overlayType: "default" });
 
         // Add handlers for all projection buttons.
-        globes.keys().forEach(function(p) {
-            bindButtonToConfiguration("#" + p, { projection: p, orientation: "" }, ["projection"]);
-        });
+        for(let projection of globes.keys()) {
+            bindButtonToConfiguration("#" + projection, { projection: projection, orientation: "" }, ["projection"]);
+        }
 
         // When touch device changes between portrait and landscape, rebuild globe using the new view size.
         d3.select(window).on("orientationchange", function() {

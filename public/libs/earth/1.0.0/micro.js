@@ -321,14 +321,19 @@ var µ = function() {
      * object describing the reason: {status: http-status-code, message: http-status-text, resource:}.
      */
     function loadJson(resource) {
-        return new Promise((resolve, reject) => {
-            d3.json(resource, function(error, result) {
-                return error ?
-                    !error.status ?
-                        reject({ status: -1, message: "Cannot load resource: " + resource, resource: resource }) :
-                        reject({ status: error.status, message: error.statusText, resource: resource }) :
-                    resolve(result);
-            });
+        return fetchResource(resource).then(res => res.json());
+    }
+
+    function fetchResource(resource) {
+        return fetch(resource).then(response => {
+            if(!response.ok) {
+                throw {
+                    status: response.status,
+                    message: "Cannot load resource: " + response.statusText,
+                    resource: resource
+                }
+            }
+            return response;
         });
     }
 
@@ -682,7 +687,8 @@ var µ = function() {
         formatCoordinates: formatCoordinates,
         formatScalar: formatScalar,
         formatVector: formatVector,
-        loadJson: loadJson,
+        loadJson,
+        fetchResource,
         distortion: distortion,
         newAgent: newAgent,
         parse: parse,
