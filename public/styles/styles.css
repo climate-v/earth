@@ -75,6 +75,7 @@ body {
 
 #display {
     cursor: default;
+    height: 100vh;
 }
 
 #map, #animation, #overlay, #foreground {
