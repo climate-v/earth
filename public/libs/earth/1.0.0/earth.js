@@ -87,7 +87,7 @@
     var fieldAgent = newAgent();     // the interpolated wind vector field
     var animatorAgent = newAgent();  // the wind animator
     var overlayAgent = newAgent();   // color overlay over the animation
-    const downloadAgent = newAgent();
+    const fileAgent = newAgent();
 
     /**
      * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
@@ -251,8 +251,9 @@
     }
 
     function downloadFile(filename) {
-        if(downloadAgent.value() != null) {
-            downloadAgent.value().close();
+        const currentFile = this.value();
+        if(currentFile != null) {
+            currentFile.close();
         }
 
         report.status("Downloading...")
@@ -282,7 +283,7 @@
         log.time("build grids");
         const selectedProducts = products.productsFor(configuration.attributes);
         const builtProducts = selectedProducts.map(product => {
-            return product.build(downloadAgent.value());
+            return product.build(fileAgent.value());
         });
         log.time("build grids");
 
@@ -887,12 +888,67 @@
         });
     }
 
+    function loadFile(file) {
+        const currentFile = this.value();
+        if(currentFile != null) {
+            currentFile.close();
+        }
+
+        report.status("Loading file...");
+        const netFile = new NetCDFFile({ type: 'file', ref: file });
+        return netFile.open().then(() => netFile);
+    }
+
+    function collectAllFilesFromDrop(dropEvent) {
+        const allFiles = [];
+        if(dropEvent.dataTransfer.items) {
+            for(let i = 0; i < dropEvent.dataTransfer.items.length; i++) {
+                if(dropEvent.dataTransfer.items[i].kind === 'file') {
+                    const file = dropEvent.dataTransfer.items[i].getAsFile();
+                    allFiles.push(file);
+                }
+            }
+        } else {
+            for(let i = 0; i < dropEvent.dataTransfer.files.length; i++) {
+                allFiles.push(dropEvent.dataTransfer.files[i]);
+            }
+        }
+        return allFiles;
+    }
+
     /**
      * Registers all event handlers to bind components and page elements together. There must be a cleaner
      * way to accomplish this...
      */
     function init() {
         report.status("Initializing...");
+
+        const display = document.getElementById("display");
+        display.addEventListener("dragover", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+        });
+
+        display.addEventListener("drop", (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            const allFiles = collectAllFilesFromDrop(ev);
+
+            if(allFiles.length > 1) {
+                report.error("Too many files dropped, please only drop one.");
+                return;
+            }
+
+            if(allFiles.length === 1) {
+                const file = allFiles[0];
+                if(!file.name.endsWith(".nc")) {
+                    report.error("Did not detect a NetCDF file.");
+                    return;
+                }
+
+                fileAgent.submit(loadFile, file);
+            }
+        })
 
         d3.select("#sponsor-hide").on("click", function() {
             d3.select("#sponsor").classed("invisible", true);
@@ -927,7 +983,7 @@
         }
 
         // Bind configuration to URL bar changes.
-        d3.select(window).on("hashchange", function() {
+        window.addEventListener("hashchange", function() {
             log.debug("hashchange");
             configuration.fetch({ trigger: "hashchange" });
         });
@@ -942,18 +998,18 @@
             globeAgent.submit(buildGlobe, attr);
         });
 
-        downloadAgent.listenTo(configuration, "change:file", (source, attr) => {
-            downloadAgent.submit(downloadFile, attr);
+        fileAgent.listenTo(configuration, "change:file", (source, attr) => {
+            fileAgent.submit(downloadFile, attr);
         });
 
-        gridAgent.listenTo(downloadAgent, "update", () => {
+        gridAgent.listenTo(fileAgent, "update", () => {
             gridAgent.submit(buildGrids);
         });
 
         gridAgent.listenTo(configuration, "change", function() {
             const changed = _.keys(configuration.changedAttributes());
             // Ignore building grid for now if we don't have a file yet or if the file got changed (and needs redownloading)
-            if(changed.includes("file") || downloadAgent.value() == null) {
+            if(changed.includes("file") || fileAgent.value() == null) {
                 return;
             }
             let rebuildRequired = false;
@@ -1154,7 +1210,7 @@
     Promise.resolve().then(init).then(waitModuleInit).then(start).catch(report.error);
 
     window.addEventListener("unload", () => {
-        const currentFile = downloadAgent.value();
+        const currentFile = fileAgent.value();
         if(currentFile != null) {
             currentFile.close();
         }
