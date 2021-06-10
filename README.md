@@ -22,16 +22,22 @@ After installing node.js and npm, clone "earth" and install dependencies:
 
 Next, launch the development web server:
 
-    node dev-server.js 8080
+    ./node_modules/.bin/vite
 
 Finally, point your browser to:
 
-    http://localhost:8080
+    http://localhost:3000
 
 The server acts as a stand-in for static S3 bucket hosting and so contains almost no server-side logic. It
-serves all files located in the `earth/public` directory. See `public/index.html` and `public/libs/earth/*.js`
+serves all files located in the `earth/public` directory. See `index.html` and `public/libs/earth/*.js`
 for the main entry points. Data files are located in the `public/data` directory, and there is one sample
 weather layer located at `data/weather/current`.
+
+For deployment, run:
+
+    ./node_modules/.bin/vite build
+
+This will create a `dist` folder will all the static files necessary. These can then be served via nginx or other means.
 
 *For Ubuntu, Mint, and elementary OS, use `nodejs` instead of `node` instead due to a [naming conflict](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager#ubuntu-mint-elementary-os).
 
