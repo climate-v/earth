@@ -9,9 +9,6 @@
 (function() {
     "use strict";
 
-    var SECOND = 1000;
-    var MINUTE = 60 * SECOND;
-    var HOUR = 60 * MINUTE;
     var MAX_TASK_TIME = 100;                  // amount of time before a task yields control (millis)
     var MIN_SLEEP_TIME = 25;                  // amount of time a task waits before resuming (millis)
     var MIN_MOVE = 4;                         // slack before a drag operation beings (pixels)
@@ -38,7 +35,7 @@
     /**
      * An object to display various types of messages to the user.
      */
-    var report = function() {
+    const report = function() {
         var s = d3.select("#status"), p = d3.select("#progress"), total = REMAINING.length;
         return {
             status: function(msg) {
@@ -88,6 +85,15 @@
     var animatorAgent = newAgent();  // the wind animator
     var overlayAgent = newAgent();   // color overlay over the animation
     const fileAgent = newAgent();
+    const metadataAgent = newAgent();
+    const heightModel = new HeightModel();
+    const heightView = new HeightView({model: heightModel});
+    const timeModel = new TimeModel();
+    const timeView = new DateView({model: timeModel});
+    const timeControlView = new TimeNavigationView({model: timeModel});
+    heightView.render();
+    timeView.render();
+    timeControlView.render();
 
     /**
      * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
@@ -283,7 +289,7 @@
         log.time("build grids");
         const selectedProducts = products.productsFor(configuration.attributes);
         const builtProducts = selectedProducts.map(product => {
-            return product.build(fileAgent.value());
+            return product.build(metadataAgent.value(), fileAgent.value());
         });
         log.time("build grids");
 
@@ -717,45 +723,18 @@
     }
 
     /**
-     * Extract the date the grids are valid, or the current date if no grid is available.
-     * UNDONE: if the grids hold unloaded products, then the date can be extracted from them.
-     *         This function would simplify nicely.
-     */
-    function validityDate(grids) {
-        // When the active layer is considered "current", use its time as now, otherwise use current time as
-        // now (but rounded down to the nearest three-hour block).
-        var THREE_HOURS = 3 * HOUR;
-        var now = grids ? grids.primaryGrid.date.getTime() : Math.floor(Date.now() / THREE_HOURS) * THREE_HOURS;
-        var parts = configuration.get("date").split("/");  // yyyy/mm/dd or "current"
-        var hhmm = configuration.get("hour");
-        return parts.length > 1 ?
-            Date.UTC(+parts[0], parts[1] - 1, +parts[2], +hhmm.substring(0, 2)) :
-            parts[0] === "current" ? now : null;
-    }
-
-    /**
-     * Display the grid's validity date in the menu. Allow toggling between local and UTC time.
-     */
-    function showDate(grids) {
-        var date = new Date(validityDate(grids)), isLocal = d3.select("#data-date").classed("local");
-        var formatted = isLocal ? µ.toLocalISO(date) : µ.toUTCISO(date);
-        d3.select("#data-date").text(formatted + " " + (isLocal ? "Local" : "UTC"));
-        d3.select("#toggle-zone").text("⇄ " + (isLocal ? "UTC" : "Local"));
-    }
-
-    /**
      * Display the grids' types in the menu.
      */
     function showGridDetails(grids) {
-        showDate(grids);
-        var description = "", center = "";
+        let description = "", center = "";
         if(grids) {
             var langCode = d3.select("body").attr("data-lang") || "en";
-            var pd = grids.primaryGrid.description(langCode), od = grids.overlayGrid.description(langCode);
-            description = od.name + od.qualifier;
+            const mainTitle = metadataAgent.value().title;
+            const pd = grids.primaryGrid.description(langCode), od = grids.overlayGrid.description(langCode);
+            description = mainTitle + od.qualifier;
             if(grids.primaryGrid !== grids.overlayGrid) {
                 // Combine both grid descriptions together with a " + " if their qualifiers are the same.
-                description = (pd.qualifier === od.qualifier ? pd.name : pd.name + pd.qualifier) + " + " + description;
+                description = (pd.qualifier === od.qualifier ? mainTitle : mainTitle + pd.qualifier) + " + " + description;
             }
             center = grids.overlayGrid.source;
         }
@@ -1002,7 +981,43 @@
             fileAgent.submit(downloadFile, attr);
         });
 
-        gridAgent.listenTo(fileAgent, "update", () => {
+        heightModel.listenTo(metadataAgent, "update", () => {
+            let values = metadataAgent.value().dimensions.levitation.values;
+            heightModel.set({
+                values,
+                selected: -1,
+                unit: metadataAgent.value().dimensions.levitation.unit
+            });
+            heightModel.set({
+                selected: heightModel.getSurfaceIndex()
+            });
+        });
+
+        timeModel.listenTo(metadataAgent, "update", () => {
+            let values = metadataAgent.value().dimensions.time.values;
+            timeModel.set({
+                selected: 0,
+                values
+            })
+        });
+
+        configuration.listenTo(heightModel, "change:selected", () => {
+            configuration.save({
+                heightIndex: heightModel.get("selected")
+            });
+        });
+
+        configuration.listenTo(timeModel, "change:selected", () => {
+            configuration.save({
+                timeIndex: timeModel.get("selected")
+            });
+        });
+
+        metadataAgent.listenTo(fileAgent, "update", () => {
+            metadataAgent.submit(MetadataAgent.buildMetadata);
+        });
+
+        gridAgent.listenTo(metadataAgent, "update", () => {
             gridAgent.submit(buildGrids);
         });
 
@@ -1015,7 +1030,7 @@
             let rebuildRequired = false;
 
             // Build a new grid if any layer-related attributes have changed.
-            if(_.intersection(changed, ["date", "hour", "param", "surface", "level", "levitation", "u", "v"]).length > 0) {
+            if(_.intersection(changed, ["timeIndex", "param", "heightIndex", "levitation", "u", "v"]).length > 0) {
                 rebuildRequired = true;
             }
             // Build a new grid if the new overlay type is different from the current one.
@@ -1040,10 +1055,6 @@
         });
         gridAgent.on("update", function(grids) {
             showGridDetails(grids);
-        });
-        d3.select("#toggle-zone").on("click", function() {
-            d3.select("#data-date").classed("local", !d3.select("#data-date").classed("local"));
-            showDate(gridAgent.cancel.requested ? null : gridAgent.value());
         });
 
         function startRendering() {
@@ -1171,12 +1182,6 @@
         });
         configuration.on("change:showGridPoints", function(x, showGridPoints) {
             d3.select("#option-show-grid").classed("highlighted", showGridPoints);
-        });
-
-        // Add handlers for all wind level buttons.
-        d3.selectAll(".surface").each(function() {
-            var id = this.id, parts = id.split("-");
-            bindButtonToConfiguration("#" + id, { param: "wind", surface: parts[0], level: parts[1] });
         });
 
         // Add handlers for ocean animation types.

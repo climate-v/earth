@@ -10,18 +10,12 @@ var products = function() {
     "use strict";
 
     var WEATHER_PATH = "/data/weather";
-    // var OSCAR_PATH = "/data/oscar";
+    var OSCAR_PATH = "/data/oscar";
     // var catalogs = {
     //     // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
     //     // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
     //     oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
     // };
-
-    const LEVITATION_UNITS = [
-        "hPa",
-        "Pa",
-        "m"
-    ];
 
     function buildProduct(overrides) {
         return _.extend({
@@ -114,54 +108,6 @@ var products = function() {
         }
     }
 
-    function filterMatchingVariableWithUnit(dimensions, unit) {
-        let filter;
-        if(typeof unit === 'string') {
-            filter = (x) => x === unit;
-        } else {
-            filter = (x) => unit.includes(x);
-        }
-
-        return dimensions.find(dimension => {
-            const unit = api.getVariableStringAttribute(dimension, 'units');
-            return filter(unit);
-        });
-    }
-
-    function filterMatchingVariableWithStandardName(variables, name) {
-        let filter;
-        if(typeof name === 'string') {
-            filter = (x) => x === name;
-        } else {
-            filter = (x) => name.includes(x);
-        }
-
-        return variables.find(variable => {
-            const standardName = api.getVariableStringAttribute(variable, 'standard_name');
-            return filter(standardName);
-        });
-    }
-
-    function findLevitationDimension(dimensions) {
-        return filterMatchingVariableWithUnit(dimensions, LEVITATION_UNITS);
-    }
-
-    function findLatDimension(dimensions) {
-        return filterMatchingVariableWithUnit(dimensions, 'degrees_north');
-    }
-
-    function findLonDimension(dimensions) {
-        return filterMatchingVariableWithUnit(dimensions, 'degrees_east');
-    }
-
-    function findUWindVariable(variables) {
-        return filterMatchingVariableWithStandardName(variables, 'eastward_wind');
-    }
-
-    function findVWindVariable(variables) {
-        return filterMatchingVariableWithStandardName(variables, 'northward_wind');
-    }
-
     var FACTORIES = {
         /*
         "wind": {
@@ -213,86 +159,48 @@ var products = function() {
                     type: "wind",
                     description: localize({
                         name: {en: "Wind - Custom", ja: "風速 - Custom"},
-                        qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                        qualifier: {en: /*" @ " + describeSurface(attr)*/" ", ja: " "/*" @ " + describeSurfaceJa(attr)*/}
                     }),
                     paths: [ncPath(filename)],
-                    date: gfsDate(attr),
+                    date: new Date(),
                     parse: function(response) {
                         return response.arrayBuffer().then(buffer => {
                             const file = new NetCDFFile({type: 'buffer', ref: buffer, name: filename + ".nc"});
                             return file.open().then(() => file);
                         });
                     },
-                    builder: function() {
-                        const dimensions = api.getDimensions().split(',');
-                        const variables = api.getVariables().split(',');
-                        const config = {
-                            levitation: findLevitationDimension(dimensions),
-                            latitude: findLatDimension(dimensions), // TODO this should be variable
-                            longitude: findLonDimension(dimensions),
-                            u: findUWindVariable(variables),
-                            v: findVWindVariable(variables)
-                        };
+                    builder: function(metadata) {
+                        const height = attr.heightIndex;
+                        const time = attr.timeIndex;
 
-                        console.debug("Metadata", config);
-
-                        for(let key in config) {
-                            if(config[key] == null) {
-                                throw new Error("Could not determine variable for " + key);
-                            }
+                        if(height === -1) {
+                            throw new Error(`Could not find matching index for selected height.`);
                         }
 
-                        const levitationUnit = api.getVariableStringAttribute(config.levitation, 'units');
-                        const hPaToLocalUnit = µ.getPressureConversionFunction(levitationUnit);
-
-                        let index;
-                        const levitationValues = api.getAllVariableValuesF64(config.levitation);
-                        if(attr.surface === 'surface') {
-                            let currentMax = 0;
-                            for(let i = 0; i < levitationValues.length; i++) {
-                                const value = levitationValues[i];
-                                if(value > currentMax) {
-                                    currentMax = value;
-                                    index = i;
-                                }
-                            }
-                        } else if (attr.surface === 'isobaric') {
-                            const givenLevel = attr.level.substr(0, attr.level.length - 3);
-                            const wantedValue = hPaToLocalUnit(parseInt(givenLevel)); // convert hPa to Pa
-                            index = levitationValues.findIndex(value => value === wantedValue); // TODO might need to handle cases where there's no _exact_ value, but close ones
-                        } else {
-                            throw new Error("Invalid surface type");
+                        if(time === -1) {
+                            throw new Error(`Could not find matching index for time.`);
                         }
 
-                        if(index === -1) {
-                            throw new Error("Could not find matching index for selected height.", {
-                                surface: attr.surface,
-                                height: attr.level
-                            });
-                        }
-
-                        const longitudeDimensionSize = api.getDimensionLength(config.longitude);
-                        const latitudeDimensionSize = api.getDimensionLength(config.latitude);
-
+                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
                         let uValues = [];
                         let vValues = [];
                         try {
-                            vValues = api.getVariableValuesF32(config.v, [0, index, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                            uValues = api.getVariableValuesF32(config.u, [0, index, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                            vValues = api.getVariableValues(metadata.dimensions.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                            uValues = api.getVariableValues(metadata.dimensions.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
                         } catch(er) {
-                            throw new Error(`Error while loading u/v values at height index ${index}: ${er}`);
+                            throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
                         }
 
-                        const timeValue = api.getVariableValueF64('time', [0]);
+                        const timeValue = metadata.dimensions.time.values[time];
                         const date = µ.floatToDate(timeValue);
-                        const centerName = api.getStringAttribute('institution');
 
-                        const lonValueRange = [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])];
-                        const latValueRange = [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])];
+                        const lonValueRange = metadata.dimensions.longitude.range;
+                        const latValueRange = metadata.dimensions.latitude.range;
 
                         return {
                             header: {
-                                centerName,
+                                centerName: metadata.centerName,
                                 dx: 360 / longitudeDimensionSize,
                                 dy: 180 / latitudeDimensionSize,
                                 gridUnits: "degrees",
@@ -308,7 +216,7 @@ var products = function() {
                             },
                             interpolate: bilinearInterpolateVector,
                             data: function(i) {
-                                return [uValues[i], vValues[i]]; // TODO u is upside down
+                                return [uValues[i], vValues[i]];
                             }
                         }
                     },

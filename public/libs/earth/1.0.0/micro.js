@@ -11,7 +11,7 @@ var µ = function() {
 
     var τ = 2 * Math.PI;
     var H = 0.0000360;  // 0.0000360°φ ~= 4m
-    var DEFAULT_CONFIG = "current/wind/surface/level/orthographic";
+    var DEFAULT_CONFIG = "0/wind/0/orthographic";
     var TOPOLOGY = isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/earth-topo.json?v2";
     const DAY_IN_SECONDS = 24 * 60 * 60;
 
@@ -468,7 +468,7 @@ var µ = function() {
         }
 
         var value = initial;
-        var runTask_debounced = _.debounce(runTask, 0);  // ignore multiple simultaneous submissions--reduces noise
+        const runTask_debounced = _.debounce(runTask, 0);  // ignore multiple simultaneous submissions--reduces noise
         var agent = {
 
             /**
@@ -489,11 +489,11 @@ var µ = function() {
              * task, if any, is immediately cancelled.
              * @returns this agent.
              */
-            submit: function(task, arg0, arg1, and_so_on) {
+            submit: function(task, ...args) {
                 // immediately cancel the previous task
                 this.cancel();
                 // schedule the new task and update the agent with its associated cancel function
-                runTask_debounced(this.cancel = cancelFactory(), arguments);
+                runTask_debounced(this.cancel = cancelFactory(), [task, ...args]);
                 return this;
             }
         };
@@ -519,26 +519,20 @@ var µ = function() {
      */
     function parse(hash, projectionNames, overlayTypes) {
         var option, result = {};
-        //             1        2        3          4          5            6      7      8    9
-        const tokens = /^(current|(\d{4})\/(\d{1,2})\/(\d{1,2})\/(\d{3,4})Z)\/(\w+)\/(\w+)\/(\w+)([\/].+)?/.exec(hash);
+        //                  1     2      3      4
+        const tokens = /^(\d+)\/(\w+)\/(\d+)([\/].+)?/.exec(hash);
         if (tokens) {
-            const date = tokens[1] === "current" ?
-                "current" :
-                tokens[2] + "/" + zeroPad(tokens[3], 2) + "/" + zeroPad(tokens[4], 2);
-            const hour = isValue(tokens[5]) ? zeroPad(tokens[5], 4) : "";
             result = {
-                date: date,                  // "current" or "yyyy/mm/dd"
-                hour: hour,                  // "hhhh" or ""
-                param: tokens[6],            // non-empty alphanumeric _
-                surface: tokens[7],          // non-empty alphanumeric _
-                level: tokens[8],            // non-empty alphanumeric _
+                timeIndex: parseInt(tokens[1]),
+                param: tokens[2],                   // non-empty alphanumeric _
+                heightIndex: parseInt(tokens[3]),   // non-empty alphanumeric _
                 projection: "orthographic",
                 orientation: "",
                 topology: TOPOLOGY,
                 overlayType: "default",
                 showGridPoints: false
             };
-            coalesce(tokens[9], "").split("/").forEach(function(segment) {
+            coalesce(tokens[4], "").split("/").forEach(function(segment) {
                 if ((option = /^(\w+)(=([\d\-.,]*))?$/.exec(segment))) {
                     if (projectionNames.has(option[1])) {
                         result.projection = option[1];                 // non-empty alphanumeric _
@@ -583,12 +577,12 @@ var µ = function() {
          */
         toHash: function() {
             var attr = this.attributes;
-            var dir = attr.date === "current" ? "current" : attr.date + "/" + attr.hour + "Z";
+            var dir = attr.timeIndex;
             var proj = [attr.projection, attr.orientation].filter(isTruthy).join("=");
             var ol = !isValue(attr.overlayType) || attr.overlayType === "default" ? "" : "overlay=" + attr.overlayType;
             var grid = attr.showGridPoints ? "grid=on" : "";
             var filename = (attr.file && attr.file !== "" ? `filename=${attr.file}` : "");
-            return [dir, attr.param, attr.surface, attr.level, ol, proj, grid, filename].filter(isTruthy).join("/");
+            return [dir + "", attr.param, attr.heightIndex + "", ol, proj, grid, filename].filter(isTruthy).join("/");
         },
 
         /**
@@ -608,6 +602,7 @@ var µ = function() {
                         model._overlayTypes));
                     break;
                 case "update":
+                case "create":
                     // Ugh. Setting the hash fires a hashchange event during the next event loop turn. Ignore it.
                     model._ignoreNextHashChangeEvent = true;
                     window.location.hash = model.toHash();

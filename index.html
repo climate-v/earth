@@ -60,35 +60,21 @@
         </p>
 
         <div id="menu" class="invisible">
-            <p>Date | <span
-                id="data-date" class="local"></span> <span
-                id="toggle-zone" class="text-button"></span>
-            </p>
+            <p>Date | <span id="dateView"></span></p>
             <p>Data | <span id="data-layer"></span></p>
             <p><span id="scale-label">Scale | </span><canvas id="scale"></canvas></p>
             <p>Source | <span id="data-center"></span></p>
-            <p>Control | <span
-                class="text-button" id="nav-now" title="Current Conditions">Now</span><span
-                class="text-button" id="nav-backward-more"> « </span> – <span
-                class="text-button" id="nav-backward"> ‹ </span> – <span
-                class="text-button" id="nav-forward"> › </span> – <span
-                class="text-button" id="nav-forward-more"> » </span><span
-                class="text-button" id="show-location" title="Current Position">〖◯〗</span><span
-                class="text-button" id="option-show-grid" title="Toggle Grid">Grid</span>
+            <p>Control |
+                <span id="timeControlView"></span>
+                <span class="text-button" id="show-location" title="Current Position">〖◯〗</span>
+                <span class="text-button" id="option-show-grid" title="Toggle Grid">Grid</span>
             </p>
             <p>Mode | <span
                 class="text-button" id="wind-mode-enable">Air</span> – <span
                 class="text-button" id="ocean-mode-enable">Ocean</span>
             </p>
-            <p class="wind-mode">Height | <span
-                class="surface text-button" id="surface-level" title="Surface">Sfc</span> – <span
-                class="surface text-button" id="isobaric-1000hPa">1000</span> – <span
-                class="surface text-button" id="isobaric-850hPa">850</span> – <span
-                class="surface text-button" id="isobaric-700hPa">700</span> – <span
-                class="surface text-button" id="isobaric-500hPa">500</span> – <span
-                class="surface text-button" id="isobaric-250hPa">250</span> – <span
-                class="surface text-button" id="isobaric-70hPa">70</span> – <span
-                class="surface text-button" id="isobaric-10hPa">10</span> hPa
+            <p class="wind-mode">Height |
+                <span id="heightView"></span>
             </p>
             <p class="wind-mode">Overlay | <span
                 class="text-button" id="overlay-off">None</span> – <span
@@ -132,6 +118,7 @@
     </div>
 
     <script src="/node_modules/underscore/underscore.js" charset="utf-8"></script>
+    <script src="/node_modules/jquery/dist/jquery.js" charset="utf-8"></script>
     <script src="/node_modules/backbone/backbone.js" charset="utf-8"></script>
     <script src="/node_modules/topojson-client/dist/topojson-client.js" charset="utf-8"></script>
     <script src="/node_modules/d3/dist/d3.js"></script>
@@ -139,6 +126,8 @@
 
     <script src="/visualize.js"></script>
     <script src="/api.js"></script>
+    <script src="/libs/earth/1.0.0/ui.js" charset="utf-8"></script>
+    <script src="/libs/earth/1.0.0/agents/metadata-agent.js" charset="utf-8"></script>
     <script src="/libs/earth/1.0.0/micro.js" charset="utf-8"></script>
     <script src="/libs/earth/1.0.0/globes.js" charset="utf-8"></script>
     <script src="/libs/earth/1.0.0/products.js" charset="utf-8"></script>

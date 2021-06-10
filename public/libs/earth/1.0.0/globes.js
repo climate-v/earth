@@ -240,7 +240,7 @@ var globes = function() {
     function orthographic() {
         return newGlobe({
             newProjection: function() {
-                return d3.geoOrthographic().rotate(currentPosition()).precision(0.1).clipAngle(90);
+                return d3.geoOrthographic().rotate(currentPosition()).precision(0.1);
             },
             defineMap: function(mapSvg, foregroundSvg) {
                 var path = d3.geoPath(this.projection);
