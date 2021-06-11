@@ -1,3 +1,7 @@
+import Backbone from 'backbone';
+import { floatToDate, toLocalISO, toUTCISO } from "./date";
+import * as _ from 'underscore';
+
 const DefaultHeightTemplate = `
  - hPa
 `;
@@ -18,7 +22,7 @@ function shouldRenderDistinct(model) {
     return model.attributes.values.length <= 7;
 }
 
-const HeightView = Backbone.View.extend({
+export const HeightView = Backbone.View.extend({
     el: '#heightView',
     template: _.template(DefaultHeightTemplate),
     distinctTemplate: _.template(DistinctHeightTemplate),
@@ -52,7 +56,7 @@ const HeightView = Backbone.View.extend({
     }
 });
 
-const HeightModel = Backbone.Model.extend({
+export const HeightModel = Backbone.Model.extend({
     defaults: {
         selected: -1,
         unit: 'hPa',
@@ -78,7 +82,7 @@ const HeightModel = Backbone.Model.extend({
     }
 });
 
-const TimeModel = Backbone.Model.extend({
+export const TimeModel = Backbone.Model.extend({
     defaults: {
         selected: 0,
         values: []
@@ -90,7 +94,7 @@ const DateDefaultTemplate = `
         <span <%= (isLocal ? 'class="text-button"' : "") %>>UTC</span>
 `;
 
-const DateView = Backbone.View.extend({
+export const DateView = Backbone.View.extend({
     el: "#dateView",
     template: _.template(DateDefaultTemplate),
     events: {
@@ -111,11 +115,11 @@ const DateView = Backbone.View.extend({
         let dateDisplay = "-";
         if(values.length > 0) {
             const selectedTime = values[this.model.get("selected")];
-            const date = µ.floatToDate(selectedTime);
+            const date = floatToDate(selectedTime);
             if(this.data.isLocal) {
-                dateDisplay = µ.toLocalISO(date);
+                dateDisplay = toLocalISO(date);
             } else {
-                dateDisplay = µ.toUTCISO(date);
+                dateDisplay = toUTCISO(date);
             }
         }
         this.$el.html(this.template({
@@ -132,7 +136,7 @@ const DefaultTimeNavigationTemplate = `
     <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward-more"> » </span>
 `;
 
-const TimeNavigationView = Backbone.View.extend({
+export const TimeNavigationView = Backbone.View.extend({
     el: "#timeControlView",
     template: _.template(DefaultTimeNavigationTemplate),
     events: {
