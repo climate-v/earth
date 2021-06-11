@@ -109,7 +109,7 @@ const FACTORIES = {
                         throw new Error(`Could not find matching index for selected height.`);
                     }
 
-                    if(time === -1) {
+                    if(time === -1 || metadata.dimensions.time.size <= time) {
                         throw new Error(`Could not find matching index for time.`);
                     }
 

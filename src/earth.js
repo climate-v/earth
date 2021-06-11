@@ -9,21 +9,22 @@
 import 'underscore'; // Import these atop here so that backbone has access to them
 import 'jquery';
 
+import Backbone from 'backbone';
+import * as d3 from 'd3';
 import * as topojson from "topojson-client";
 import { createApi } from "./api";
+import { newLoggedAgent } from "./agents/agents";
+import { MetadataAgent } from "./agents/metadata-agent";
 import { buildConfiguration } from "./configuration";
 import { dateToConfig } from "./date";
 import globes from "./globes";
+import log from './log';
 import { clamp, distance, spread } from "./math";
 import µ from './micro';
 import products from "./products";
-import * as d3 from 'd3';
-import Backbone from 'backbone';
-import { MetadataAgent } from "./agents/metadata-agent";
-import { HeightModel, HeightView, DateView, TimeModel, TimeNavigationView } from "./ui";
-import { newLoggedAgent } from "./agents/agents";
-import log from './log';
 import report from "./report";
+import { DateView, HeightModel, HeightView, TimeModel, TimeNavigationView } from "./ui";
+import { getSurfaceIndexForUnit } from "./units";
 import * as _ from 'underscore';
 
 const MAX_TASK_TIME = 100;                  // amount of time before a task yields control (millis)
@@ -957,23 +958,42 @@ function init() {
     });
 
     heightModel.listenTo(metadataAgent, "update", () => {
-        let values = metadataAgent.value().dimensions.levitation.values;
+        const values = metadataAgent.value().dimensions.levitation.values;
+        const unit = metadataAgent.value().dimensions.levitation.unit;
+        let indexToUse = getSurfaceIndexForUnit(values, unit);
+        const currentHeightIndex = configuration.get("heightIndex");
+        if(currentHeightIndex != null) {
+            if(currentHeightIndex < values.length) {
+                indexToUse = currentHeightIndex;
+            } else {
+                log.info("Resetting height index, since it does not exist in loaded file.");
+                configuration.save({ heightIndex: indexToUse });
+            }
+        }
+
         heightModel.set({
             values,
-            selected: -1,
-            unit: metadataAgent.value().dimensions.levitation.unit
-        });
-        heightModel.set({
-            selected: heightModel.getSurfaceIndex()
+            selected: indexToUse,
+            unit
         });
     });
 
     timeModel.listenTo(metadataAgent, "update", () => {
-        let values = metadataAgent.value().dimensions.time.values;
+        const values = metadataAgent.value().dimensions.time.values;
+        const currentTimeIndex = configuration.get("timeIndex");
+        let indexToSelect = 0;
+        if(currentTimeIndex != null) {
+            if(currentTimeIndex < values.length) {
+                indexToSelect = currentTimeIndex;
+            } else {
+                log.info("Resetting time index, since it does not exist in loaded file.");
+                configuration.save({ timeIndex: indexToSelect });
+            }
+        }
         timeModel.set({
-            selected: 0,
+            selected: indexToSelect,
             values
-        })
+        });
     });
 
     configuration.listenTo(heightModel, "change:selected", () => {

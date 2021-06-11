@@ -1,8 +1,4 @@
-export const LEVITATION_UNITS = [
-    "hPa",
-    "Pa",
-    "m"
-];
+import { LEVITATION_UNITS } from "../units";
 
 export const WIND_OVERLAY = "WIND";
 export const TEMPERATURE_OVERLAY = "TEMP";
@@ -114,12 +110,14 @@ export const MetadataAgent = {
             dimensions: {
                 time: {
                     name: config.time,
-                    values: timeValues
+                    values: timeValues,
+                    size: timeValues.length
                 },
                 levitation: {
                     name: config.levitation,
                     values: elevationLevels,
-                    unit: api.getVariableStringAttribute(config.levitation, 'units')
+                    unit: api.getVariableStringAttribute(config.levitation, 'units'),
+                    size: elevationLevels.length
                 },
                 latitude: {
                     name: config.latitude,

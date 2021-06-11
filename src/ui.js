@@ -1,6 +1,7 @@
 import Backbone from 'backbone';
 import { floatToDate, toLocalISO, toUTCISO } from "./date";
 import * as _ from 'underscore';
+import { getSurfaceIndexForUnit } from "./units";
 
 const DefaultHeightTemplate = `
  - hPa
@@ -38,7 +39,7 @@ export const HeightView = Backbone.View.extend({
             this.$el.html(this.distinctTemplate(this.model.attributes));
             this.delegateEvents({
                 'click #surface-level': () => {
-                    this.model.set({ selected: this.model.getSurfaceIndex() });
+                    this.model.set({ selected: getSurfaceIndexForUnit(this.model.attributes.values, this.model.attributes.unit) });
                 },
                 'click .height-selector': (ev) => {
                     this.model.set({ selected: parseInt(ev.target.dataset.index) });
@@ -58,27 +59,9 @@ export const HeightView = Backbone.View.extend({
 
 export const HeightModel = Backbone.Model.extend({
     defaults: {
-        selected: -1,
+        selected: 0,
         unit: 'hPa',
         values: []
-    },
-    currentIndex() {
-        if(this.attributes.selected === -1) {
-            return this.getSurfaceIndex();
-        } else {
-            return this.attributes.selected;
-        }
-    },
-    getSurfaceIndex() {
-        switch(this.attributes.unit) {
-            case "hPa":
-            case "Pa":
-                const maxValue = Math.max(...this.attributes.values);
-                return this.attributes.values.indexOf(maxValue);
-            default:
-                const minValue = Math.min(...this.attributes.values);
-                return this.attributes.indexOf(minValue);
-        }
     }
 });
 
@@ -130,6 +113,7 @@ export const DateView = Backbone.View.extend({
 });
 
 const DefaultTimeNavigationTemplate = `
+    <span class="text-button" id="reset-time">Reset</span>
     <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward-more"> « </span> –
     <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward"> ‹ </span> –
     <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward"> › </span> –
@@ -140,6 +124,7 @@ export const TimeNavigationView = Backbone.View.extend({
     el: "#timeControlView",
     template: _.template(DefaultTimeNavigationTemplate),
     events: {
+        'click #reset-time': function() { this.reset() },
         'click #nav-backward-mode.text-button': function() { this.adjustIndex(-10); },
         'click #nav-backward.text-button': function() { this.adjustIndex(-1); },
         'click #nav-forward-mode.text-button': function() { this.adjustIndex(10); },
@@ -147,6 +132,9 @@ export const TimeNavigationView = Backbone.View.extend({
     },
     initialize() {
         this.listenTo(this.model, "change", this.render);
+    },
+    reset() {
+        this.model.set({selected: 0});
     },
     adjustIndex(adjustment) {
         const index = this.model.get("selected");
