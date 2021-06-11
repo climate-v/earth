@@ -3,6 +3,7 @@ import Backbone from 'backbone';
 
 const DEFAULT_CONFIG = "0/wind/0/orthographic";
 const TOPOLOGY = micro.isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/earth-topo.json?v2";
+const OPTION_SEPARATOR = "|";
 
 /**
  * Parses a URL hash fragment:
@@ -12,7 +13,7 @@ const TOPOLOGY = micro.isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/e
  *          projection: "orthographic", orientation: "26.50,-153.00,1430", overlayType: "off"}
  *
  * grammar:
- *     hash   := ( "current" | yyyy / mm / dd / hhhh "Z" ) / param / surface / level [ / option [ / option ... ] ]
+ *     hash   := timeIndex / param / heightIndex [ / option [ | option ... ] ]
  *     option := type [ "=" number [ "," number [ ... ] ] ]
  *
  * @param hash the hash fragment.
@@ -21,7 +22,7 @@ const TOPOLOGY = micro.isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/e
  * @returns {Object} the result of the parse.
  */
 function parse(hash, projectionNames, overlayTypes) {
-    var option, result = {};
+    let result = {};
     //                  1     2      3      4
     const tokens = /^(\d+)\/(\w+)\/(\d+)([\/].+)?/.exec(hash);
     if(tokens) {
@@ -35,30 +36,37 @@ function parse(hash, projectionNames, overlayTypes) {
             overlayType: "default",
             showGridPoints: false
         };
-        micro.coalesce(tokens[4], "").split("/").forEach(function(segment) {
-            if((option = /^(\w+)(=([\d\-.,]*))?$/.exec(segment))) {
-                if(projectionNames.has(option[1])) {
-                    result.projection = option[1];                 // non-empty alphanumeric _
-                    result.orientation = micro.coalesce(option[3], "");  // comma delimited string of numbers, or ""
-                }
-            } else if((option = /^(\w+)=([^/]+)$/.exec(segment))) {
-                const name = option[1];
-                const value = option[2];
-                switch(name) {
-                    case 'overlay':
-                        if(overlayTypes.has(value) || value === "default") {
-                            result.overlayType = value;
-                        }
-                        break;
-                    case 'grid':
-                        if(value === "on") {
-                            result.showGridPoints = true;
-                        }
-                        break;
-                    case 'filename':
-                        result.file = value;
-                        break;
-                }
+        micro.coalesce(tokens[4], "").split(OPTION_SEPARATOR).forEach(function(segment) {
+            let optionName;
+            let optionValue = null;
+            if(segment.includes("=")) {
+                let [name, ...values] = segment.split("=");
+                optionName = name;
+                optionValue = values.join("=");
+            } else {
+                optionName = segment;
+            }
+
+            switch(optionName) {
+                case 'overlay':
+                    if(overlayTypes.has(optionValue) || optionValue === "default") {
+                        result.overlayType = optionValue;
+                    }
+                    break;
+                case 'grid':
+                    if(optionValue === "on") {
+                        result.showGridPoints = true;
+                    }
+                    break;
+                case 'file':
+                    result.file = optionValue;
+                    break;
+                default:
+                    if(projectionNames.has(optionName) && /^[\d\-.,]*$/.test(optionValue)) {
+                        result.projection = optionName;
+                        result.orientation = optionValue;
+                    }
+                    break;
             }
         });
     }
@@ -79,21 +87,23 @@ const Configuration = Backbone.Model.extend({
     /**
      * @returns {String} this configuration converted to a hash fragment.
      */
-    toHash: function() {
+    toHash() {
         const attr = this.attributes;
-        const dir = attr.timeIndex;
+        const time = attr.timeIndex + "";
+        const height = attr.heightIndex + "";
         const proj = [attr.projection, attr.orientation].filter(micro.isTruthy).join("=");
         const ol = !micro.isValue(attr.overlayType) || attr.overlayType === "default" ? "" : "overlay=" + attr.overlayType;
         const grid = attr.showGridPoints ? "grid=on" : "";
-        const filename = (attr.file && attr.file !== "" ? `filename=${attr.file}` : "");
-        return [dir + "", attr.param, attr.heightIndex + "", ol, proj, grid, filename].filter(micro.isTruthy).join("/");
+        const filename = (attr.file && attr.file !== "" ? `file=${attr.file}` : "");
+        const options = [ol, proj, grid, filename].filter(micro.isTruthy).join(OPTION_SEPARATOR);
+        return [time, attr.param, height, options].filter(micro.isTruthy).join("/");
     },
 
     /**
      * Synchronizes between the configuration model and the hash fragment in the URL bar. Invocations
      * caused by "hashchange" events must have the {trigger: "hashchange"} option specified.
      */
-    sync: function(method, model, options) {
+    sync(method, model, options) {
         switch(method) {
             case "read":
                 if(options.trigger === "hashchange" && model._ignoreNextHashChangeEvent) {

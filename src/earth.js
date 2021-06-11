@@ -14,6 +14,7 @@ import * as d3 from 'd3';
 import * as topojson from "topojson-client";
 import { createApi } from "./api";
 import { newLoggedAgent } from "./agents/agents";
+import { downloadFile, loadFile } from "./agents/file-agent";
 import { MetadataAgent } from "./agents/metadata-agent";
 import { buildConfiguration } from "./configuration";
 import { dateToConfig } from "./date";
@@ -43,7 +44,6 @@ const FRAME_RATE = 40;                      // desired milliseconds per frame
 const NULL_WIND_VECTOR = [NaN, NaN, null];  // singleton for undefined location outside the vector field [u, v, mag]
 const HOLE_VECTOR = [NaN, NaN, null];       // singleton that signifies a hole in the vector field
 const TRANSPARENT_BLACK = [0, 0, 0, 0];     // singleton 0 rgba
-const WEATHER_PATH = "/data/weather";
 
 let view = µ.view();
 
@@ -229,22 +229,6 @@ function buildMesh(resource) {
             lakesLo: lakesLo,
             lakesHi: lakesHi
         };
-    });
-}
-
-function downloadFile(filename) {
-    const currentFile = this.value();
-    if(currentFile != null) {
-        currentFile.close();
-    }
-
-    report.status("Downloading...")
-    const path = [WEATHER_PATH, 'current', filename + ".nc"].join("/")
-    return µ.fetchResource(path).then(resp => {
-        return resp.arrayBuffer().then(buffer => {
-            const file = api.createNetcdfFile({ type: 'buffer', ref: buffer, name: filename + ".nc" });
-            return file.open().then(() => file);
-        });
     });
 }
 
@@ -843,17 +827,6 @@ function bindButtonToConfiguration(elementId, newAttr, keys) {
     });
 }
 
-function loadFile(file) {
-    const currentFile = this.value();
-    if(currentFile != null) {
-        currentFile.close();
-    }
-
-    report.status("Loading file...");
-    const netFile = api.createNetcdfFile({ type: 'file', ref: file });
-    return netFile.open().then(() => netFile);
-}
-
 function collectAllFilesFromDrop(dropEvent) {
     const allFiles = [];
     if(dropEvent.dataTransfer.items) {
@@ -901,7 +874,7 @@ function init() {
                 return;
             }
 
-            fileAgent.submit(loadFile, file);
+            fileAgent.submit(loadFile, api, file);
         }
     })
 
@@ -954,7 +927,7 @@ function init() {
     });
 
     fileAgent.listenTo(configuration, "change:file", (source, attr) => {
-        fileAgent.submit(downloadFile, attr);
+        fileAgent.submit(downloadFile, api, attr);
     });
 
     heightModel.listenTo(metadataAgent, "update", () => {
