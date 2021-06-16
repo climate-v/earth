@@ -80,7 +80,6 @@ function parse(hash, projectionNames, overlayTypes) {
  */
 const Configuration = Backbone.Model.extend({
     id: 0,
-    _ignoreNextHashChangeEvent: false,
     _projectionNames: null,
     _overlayTypes: null,
 
@@ -106,10 +105,6 @@ const Configuration = Backbone.Model.extend({
     sync(method, model, options) {
         switch(method) {
             case "read":
-                if(options.trigger === "hashchange" && model._ignoreNextHashChangeEvent) {
-                    model._ignoreNextHashChangeEvent = false;
-                    return;
-                }
                 model.set(parse(
                     window.location.hash.substr(1) || DEFAULT_CONFIG,
                     model._projectionNames,
@@ -117,8 +112,6 @@ const Configuration = Backbone.Model.extend({
                 break;
             case "update":
             case "create":
-                // Ugh. Setting the hash fires a hashchange event during the next event loop turn. Ignore it.
-                model._ignoreNextHashChangeEvent = true;
                 window.location.hash = model.toHash();
                 break;
         }
