@@ -970,14 +970,30 @@ function init() {
     });
 
     configuration.listenTo(heightModel, "change:selected", () => {
-        configuration.save({
-            heightIndex: heightModel.get("selected")
+        const currentConfigurationValue = configuration.get("heightIndex");
+        const newHeightIndex = heightModel.get("selected");
+        if(currentConfigurationValue !== newHeightIndex) {
+            configuration.save({ heightIndex: newHeightIndex });
+        }
+    });
+
+    heightModel.listenTo(configuration, "change:heightIndex", () => {
+        heightModel.set({
+            selected: configuration.get("heightIndex")
         });
     });
 
     configuration.listenTo(timeModel, "change:selected", () => {
-        configuration.save({
-            timeIndex: timeModel.get("selected")
+        const currentConfigurationValue = configuration.get("timeIndex");
+        const newTimeIndex = timeModel.get("selected");
+        if(currentConfigurationValue !== newTimeIndex) {
+            configuration.save({ timeIndex: timeModel.get("selected") });
+        }
+    });
+
+    timeModel.listenTo(configuration, "change:timeIndex", () => {
+        timeModel.set({
+            selected: configuration.get("timeIndex")
         });
     });
 
