@@ -23,8 +23,8 @@ const OPTION_SEPARATOR = "|";
  */
 function parse(hash, projectionNames, overlayTypes) {
     let result = {};
-    //                  1     2      3      4
-    const tokens = /^(\d+)\/(\w+)\/(\d+)([\/].+)?/.exec(hash);
+    //                  1     2      3    4    5
+    const tokens = /^(\d+)\/(\w+)\/(\d+)([\/](.+))?/.exec(hash);
     if(tokens) {
         result = {
             timeIndex: parseInt(tokens[1]),
@@ -36,7 +36,7 @@ function parse(hash, projectionNames, overlayTypes) {
             overlayType: "default",
             showGridPoints: false
         };
-        micro.coalesce(tokens[4], "").split(OPTION_SEPARATOR).forEach(function(segment) {
+        micro.coalesce(tokens[5], "").split(OPTION_SEPARATOR).forEach(function(segment) {
             let optionName;
             let optionValue = null;
             if(segment.includes("=")) {
