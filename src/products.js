@@ -679,7 +679,7 @@ export function buildGrid(builder) {
         if ((row = grid[fj])) {
             var g00 = row[fi];
             var g10 = row[ci];
-            if (µ.isValue(g00) && µ.isValue(g10) && (row = grid[cj])) {
+            if (µ.isValue(g00) && µ.isValue(g10) && (row = grid[cj % nj])) {
                 var g01 = row[fi];
                 var g11 = row[ci];
                 if (µ.isValue(g01) && µ.isValue(g11)) {
