@@ -927,7 +927,18 @@ function init() {
     });
 
     fileAgent.listenTo(configuration, "change:file", (source, attr) => {
-        fileAgent.submit(downloadFile, api, attr);
+        if(attr != null && attr !== "") {
+            fileAgent.submit(downloadFile, api, attr);
+        }
+    });
+
+    configuration.listenTo(fileAgent, "update", (_, agent) => {
+        const value = agent.value();
+        if(value.source.type === "local") {
+            configuration.save({ file: null });
+        } else {
+            configuration.save({ file: value.source.path });
+        }
     });
 
     heightModel.listenTo(metadataAgent, "update", () => {
@@ -1202,6 +1213,6 @@ Promise.resolve().then(init).then(createApi).then(start).catch(report.error);
 window.addEventListener("unload", () => {
     const currentFile = fileAgent.value();
     if(currentFile != null) {
-        currentFile.close();
+        currentFile.file.close();
     }
 });
