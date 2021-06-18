@@ -935,6 +935,35 @@ function init() {
         }
     });
 
+    configuration.listenTo(metadataAgent, "update", () => {
+        const heightValues = metadataAgent.value().dimensions.levitation.values;
+        const unit = metadataAgent.value().dimensions.levitation.unit;
+        let indexToUse = getSurfaceIndexForUnit(heightValues, unit);
+        const currentHeightIndex = configuration.get("heightIndex");
+        if(currentHeightIndex != null) {
+            if(currentHeightIndex >= heightValues.length) {
+                log.info("Resetting height index, since it does not exist in loaded file.");
+                configuration.save({ heightIndex: indexToUse });
+            }
+        }
+
+        const timeValues = metadataAgent.value().dimensions.time.values;
+        const currentTimeIndex = configuration.get("timeIndex");
+        let indexToSelect = 0;
+        if(currentTimeIndex != null) {
+            if(currentTimeIndex >= timeValues.length) {
+                log.info("Resetting time index, since it does not exist in loaded file.");
+                configuration.save({ timeIndex: indexToSelect });
+            }
+        }
+
+        const overlays = metadataAgent.value().availableOverlays;
+        const selectedOverlay = configuration.get("overlayType");
+        if(!overlays.some(overlay => overlay.id === selectedOverlay)) {
+            configuration.save({ overlayType: 'off' });
+        }
+    });
+
     configuration.listenTo(fileAgent, "update", (_, agent) => {
         const value = agent.value();
         if(value.source.type === "local") {
@@ -947,40 +976,16 @@ function init() {
     heightModel.listenTo(metadataAgent, "update", () => {
         const values = metadataAgent.value().dimensions.levitation.values;
         const unit = metadataAgent.value().dimensions.levitation.unit;
-        let indexToUse = getSurfaceIndexForUnit(values, unit);
-        const currentHeightIndex = configuration.get("heightIndex");
-        if(currentHeightIndex != null) {
-            if(currentHeightIndex < values.length) {
-                indexToUse = currentHeightIndex;
-            } else {
-                log.info("Resetting height index, since it does not exist in loaded file.");
-                configuration.save({ heightIndex: indexToUse });
-            }
-        }
 
         heightModel.set({
             values,
-            selected: indexToUse,
             unit
         });
     });
 
     timeModel.listenTo(metadataAgent, "update", () => {
         const values = metadataAgent.value().dimensions.time.values;
-        const currentTimeIndex = configuration.get("timeIndex");
-        let indexToSelect = 0;
-        if(currentTimeIndex != null) {
-            if(currentTimeIndex < values.length) {
-                indexToSelect = currentTimeIndex;
-            } else {
-                log.info("Resetting time index, since it does not exist in loaded file.");
-                configuration.save({ timeIndex: indexToSelect });
-            }
-        }
-        timeModel.set({
-            selected: indexToSelect,
-            values
-        });
+        timeModel.set({ values });
     });
 
     configuration.listenTo(heightModel, "change:selected", () => {

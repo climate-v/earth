@@ -13,6 +13,11 @@ import _ from 'underscore'
 
 const WEATHER_PATH = "/data/weather";
 const OSCAR_PATH = "/data/oscar";
+const DEFAULT_UNIT = {
+    label: "",
+    conversion: (x) => x,
+    precision: 3
+};
 // var catalogs = {
 //     // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
 //     // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
@@ -106,9 +111,9 @@ function createHeader(metadata, time) {
         forecastTime: 0, // maybe we should change this?
         la1: Math.max(...latValueRange),
         la2: Math.min(...latValueRange),
-        flipped: latValueRange[0] < 0, // We need to set it 'flipped' if -90 is at the start
-        lo1: lonValueRange[0],
-        lo2: lonValueRange[1],
+        flipped: latValueRange[0] < latValueRange[1], // We need to set it 'flipped' if -90 is at the start
+        lo1: Math.min(...lonValueRange),
+        lo2: Math.max(...lonValueRange),
         nx: longitudeDimensionSize,
         ny: latitudeDimensionSize
     }
@@ -129,7 +134,7 @@ const FACTORIES = {
                 builder: function(api, metadata) {
                     const height = attr.heightIndex;
                     const time = attr.timeIndex;
-                    const windOverlay = metadata.availableOverlays.wind;
+                    const windOverlay = metadata.availableOverlays.find(overlay => overlay.type === "wind");
 
                     if(height === -1) {
                         throw new Error(`Could not find matching index for selected height.`);
@@ -188,6 +193,7 @@ const FACTORIES = {
                 builder: function(api, metadata) {
                     const height = attr.heightIndex;
                     const time = attr.timeIndex;
+                    const tempOverlay = metadata.availableOverlays.find(overlay => overlay.type === "temp");
 
                     if(height === -1) {
                         throw new Error(`Could not find matching index for selected height.`);
@@ -199,7 +205,7 @@ const FACTORIES = {
                     const latitudeDimensionSize = metadata.dimensions.latitude.size;
                     const longitudeDimensionSize = metadata.dimensions.longitude.size;
 
-                    const tempValues = api.getVariableValues(metadata.availableOverlays.temp.name, [time, height,0 , 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                    const tempValues = api.getVariableValues(tempOverlay.name, [time, height,0 , 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
 
                     return {
                         header: createHeader(metadata, time),
@@ -228,6 +234,65 @@ const FACTORIES = {
                         [298,     [235, 167, 21]],
                         [311,     [230, 71, 39]],
                         [328,     [88, 27, 67]]
+                    ])
+                }
+            });
+        }
+    },
+
+    "generic": {
+        matches(attr) {
+            return !['off', 'temp', 'wind'].includes(attr.overlayType);
+        },
+        create: function(attr) {
+            return buildProduct({
+                field: "scalar",
+                type: "generic",
+                description: localize({
+                    name: { en: attr.overlay, ja: "気温" },
+                    qualifier: { en: " ", ja: " " }
+                }),
+                builder: function(api, metadata) {
+                    const height = attr.heightIndex;
+                    const time = attr.timeIndex;
+                    const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
+
+                    if(height === -1) {
+                        throw new Error(`Could not find matching index for selected height.`);
+                    }
+
+                    if(time === -1 || metadata.dimensions.time.size <= time) {
+                        throw new Error(`Could not find matching index for time.`);
+                    }
+
+                    const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                    const longitudeDimensionSize = metadata.dimensions.longitude.size;
+
+                    const values = api.getVariableValues(overlayDef.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+
+                    return {
+                        header: createHeader(metadata, time),
+                        interpolate: bilinearInterpolateScalar,
+                        data: function(i) {
+                            return values[i];
+                        }
+                    }
+                },
+                units: [DEFAULT_UNIT],
+                scale: {
+                    bounds: [193, 328],
+                    gradient: µ.segmentedColorScale([
+                        [193, [37, 4, 42]],
+                        [206, [41, 10, 130]],
+                        [219, [81, 40, 40]],
+                        [233.15, [192, 37, 149]],  // -40 C/F
+                        [255.372, [70, 215, 215]],  // 0 F
+                        [273.15, [21, 84, 187]],   // 0 C
+                        [275.15, [24, 132, 14]],   // just above 0 C
+                        [291, [247, 251, 59]],
+                        [298, [235, 167, 21]],
+                        [311, [230, 71, 39]],
+                        [328, [88, 27, 67]]
                     ])
                 }
             });
@@ -660,9 +725,9 @@ export function buildGrid(builder) {
     let flipped = header.flipped || false;
     var grid = new Array(nj), p = 0;
     var isContinuous = Math.floor(ni * Δλ) >= 360;
-    for (var j = 0; j < nj; j++) {
+    for (let j = 0; j < nj; j++) {
         var row = [];
-        for (var i = 0; i < ni; i++, p++) {
+        for (let i = 0; i < ni; i++, p++) {
             row[i] = builder.data(p);
         }
         if (isContinuous) {

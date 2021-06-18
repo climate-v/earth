@@ -9,9 +9,9 @@ export const OverlayModel = Backbone.Model.extend({
 });
 
 const OverlayTemplate = `
-    <span class="text-button <%= isHighlighted('off') ? 'highlighted':'' %>" data-overlay="off" id="overlay-off">None</span>
-    <% Object.keys(overlays).forEach(overlay => { %>
-     - <span class="text-button <%= isHighlighted(overlay) ? 'highlighted':'' %>" data-overlay="<%= overlay %>" title="<%= overlays[overlay].displayName %>"><%= overlays[overlay].displayName %></span>
+    <span class="text-button <%= isHighlighted({id:'off'}) ? 'highlighted':'' %>" data-overlay="off" id="overlay-off">None</span>
+    <% overlays.forEach(overlay => { %>
+     - <span class="text-button <%= isHighlighted(overlay) ? 'highlighted':'' %>" data-overlay="<%= overlay.id %>" title="<%= overlay.displayName %>"><%= overlay.displayName %></span>
     <% }); %>
 `;
 
@@ -33,7 +33,7 @@ export const OverlayView = Backbone.View.extend({
         this.$el.html(this.template({
             ...attrs,
             isHighlighted(overlay) {
-                return attrs.currentOverlay === overlay;
+                return attrs.currentOverlay === overlay.id;
             }
         }));
         return this;

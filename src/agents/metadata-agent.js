@@ -7,12 +7,12 @@ const TEMPERATURE_OVERLAY_VARIABLES = [
 export const WIND_OVERLAY = "wind";
 export const TEMPERATURE_OVERLAY = "temp";
 
-export const OVERLAYS = [
+export const SPECIAL_OVERLAYS = [
     WIND_OVERLAY,
     TEMPERATURE_OVERLAY
 ];
 
-const OVERLAY_FACTORY = {
+const OVERLAY_FACTORIES = {
     [WIND_OVERLAY]: createWindOverlay,
     [TEMPERATURE_OVERLAY]: createTempOverlay
 }
@@ -68,14 +68,22 @@ function findTimeDimension(api, dimensions) {
 }
 
 function createWindOverlay(api, variables) {
+    let uVariableName = findUWindVariable(api, variables);
+    let vVariableName = findVWindVariable(api, variables);
+
+    if(uVariableName == null || vVariableName == null) {
+        return null;
+    }
+
+    variables.splice(variables.indexOf(uVariableName), 1);
+    variables.splice(variables.indexOf(vVariableName), 1);
+
     return {
         displayName: "Wind",
-        u: {
-            name: findUWindVariable(api, variables)
-        },
-        v: {
-            name: findVWindVariable(api, variables)
-        }
+        type: "wind",
+        id: "wind",
+        u: { name: uVariableName },
+        v: { name: vVariableName }
     }
 }
 
@@ -83,7 +91,10 @@ function createTempOverlay(api, variables) {
     const tempVariable = variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable))
         || filterMatchingVariableWithLongName(api, variables, 'Temperature');
     if(tempVariable != null) {
+        variables.splice(variables.indexOf(tempVariable), 1);
         return {
+            type: "temp",
+            id: "temp",
             displayName: "Temp",
             name: tempVariable
         };
@@ -92,14 +103,37 @@ function createTempOverlay(api, variables) {
     }
 }
 
-function getAvailableOverlays(api, variables) {
-    const overlays = {};
-    OVERLAYS.forEach(overlay => {
-        const overlayConfig = OVERLAY_FACTORY[overlay](api, variables);
+function createGenericOverlay(api, variable, allDimensions) {
+    const dimensions = api.getVariableDimensions(variable).split(",");
+    if(dimensions.length !== allDimensions.length || dimensions.some(dim => !allDimensions.includes(dim))) {
+        return null;
+    }
+
+    return {
+        type: "generic",
+        id: variable,
+        displayName: variable,
+        name: variable
+    }
+}
+
+function getAvailableOverlays(api, allVariables, dimensions) {
+    const variables = allVariables.filter(variable => !dimensions.includes(variable));
+    const overlays = [];
+    SPECIAL_OVERLAYS.forEach(overlay => {
+        const overlayConfig = OVERLAY_FACTORIES[overlay](api, variables);
         if(overlayConfig != null) {
-            overlays[overlay] = overlayConfig
+            overlays.push(overlayConfig);
         }
     });
+
+    variables.forEach(variable => {
+        let overlay = createGenericOverlay(api, variable, dimensions);
+        if(overlay != null) {
+            overlays.push(overlay);
+        }
+    });
+
     return overlays;
 }
 
@@ -132,7 +166,7 @@ export const MetadataAgent = {
             }
         }
 
-        const availableOverlays = getAvailableOverlays(api, variables);
+        const availableOverlays = getAvailableOverlays(api, variables, dimensions);
 
         const timeValues = getTimeValues(api, config.time);
         const elevationLevels = getElevationLevels(api, config.levitation);
