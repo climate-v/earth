@@ -87,11 +87,37 @@ function localize(table) {
     }
 }
 
+function createHeader(metadata, time) {
+    const timeValue = metadata.dimensions.time.values[time];
+    const date = floatToDate(timeValue);
+
+    const lonValueRange = metadata.dimensions.longitude.range;
+    const latValueRange = metadata.dimensions.latitude.range;
+
+    const latitudeDimensionSize = metadata.dimensions.latitude.size;
+    const longitudeDimensionSize = metadata.dimensions.longitude.size;
+
+    return {
+        centerName: metadata.centerName,
+        dx: 360 / longitudeDimensionSize,
+        dy: 180 / latitudeDimensionSize,
+        gridUnits: "degrees",
+        refTime: date.toISOString(),
+        forecastTime: 0, // maybe we should change this?
+        la1: Math.max(...latValueRange),
+        la2: Math.min(...latValueRange),
+        flipped: latValueRange[0] < 0, // We need to set it 'flipped' if -90 is at the start
+        lo1: lonValueRange[0],
+        lo2: lonValueRange[1],
+        nx: longitudeDimensionSize,
+        ny: latitudeDimensionSize
+    }
+}
+
 const FACTORIES = {
     "wind": {
         matches: _.matches({param: "wind"}),
         create: function(attr) {
-            const filename = attr.file;
             return buildProduct({
                 field: "vector",
                 type: "wind",
@@ -99,11 +125,11 @@ const FACTORIES = {
                     name: {en: "Wind", ja: "風速"},
                     qualifier: {en: /*" @ " + describeSurface(attr)*/" ", ja: " "/*" @ " + describeSurfaceJa(attr)*/}
                 }),
-                paths: [ncPath(filename)],
                 date: new Date(),
                 builder: function(api, metadata) {
                     const height = attr.heightIndex;
                     const time = attr.timeIndex;
+                    const windOverlay = metadata.availableOverlays.wind;
 
                     if(height === -1) {
                         throw new Error(`Could not find matching index for selected height.`);
@@ -118,34 +144,14 @@ const FACTORIES = {
                     let uValues = [];
                     let vValues = [];
                     try {
-                        vValues = api.getVariableValues(metadata.dimensions.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                        uValues = api.getVariableValues(metadata.dimensions.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        vValues = api.getVariableValues(windOverlay.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        uValues = api.getVariableValues(windOverlay.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
                     } catch(er) {
                         throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
                     }
 
-                    const timeValue = metadata.dimensions.time.values[time];
-                    const date = floatToDate(timeValue);
-
-                    const lonValueRange = metadata.dimensions.longitude.range;
-                    const latValueRange = metadata.dimensions.latitude.range;
-
                     return {
-                        header: {
-                            centerName: metadata.centerName,
-                            dx: 360 / longitudeDimensionSize,
-                            dy: 180 / latitudeDimensionSize,
-                            gridUnits: "degrees",
-                            refTime: date.toISOString(),
-                            forecastTime: 0, // maybe we should change this?
-                            la1: Math.max(...latValueRange),
-                            la2: Math.min(...latValueRange),
-                            flipped: latValueRange[0] < 0, // We need to set it 'flipped' if -90 is at the start
-                            lo1: lonValueRange[0],
-                            lo2: lonValueRange[1],
-                            nx: longitudeDimensionSize,
-                            ny: latitudeDimensionSize
-                        },
+                        header: createHeader(metadata, time),
                         interpolate: bilinearInterpolateVector,
                         data: function(i) {
                             return [uValues[i], vValues[i]];
@@ -169,7 +175,6 @@ const FACTORIES = {
         }
     },
 
-    /*
     "temp": {
         matches: _.matches({param: "wind", overlayType: "temp"}),
         create: function(attr) {
@@ -178,17 +183,29 @@ const FACTORIES = {
                 type: "temp",
                 description: localize({
                     name: {en: "Temp", ja: "気温"},
-                    qualifier: {en: " @ " + describeSurface(attr), ja: " @ " + describeSurfaceJa(attr)}
+                    qualifier: {en: " ", ja: " "}
                 }),
-                paths: [gfs1p0degPath(attr, "temp", attr.surface, attr.level)],
-                date: gfsDate(attr),
-                builder: function(file) {
-                    var record = file[0], data = record.data;
+                builder: function(api, metadata) {
+                    const height = attr.heightIndex;
+                    const time = attr.timeIndex;
+
+                    if(height === -1) {
+                        throw new Error(`Could not find matching index for selected height.`);
+                    }
+
+                    if(time === -1 || metadata.dimensions.time.size <= time) {
+                        throw new Error(`Could not find matching index for time.`);
+                    }
+                    const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                    const longitudeDimensionSize = metadata.dimensions.longitude.size;
+
+                    const tempValues = api.getVariableValues(metadata.availableOverlays.temp.name, [time, height,0 , 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+
                     return {
-                        header: record.header,
+                        header: createHeader(metadata, time),
                         interpolate: bilinearInterpolateScalar,
                         data: function(i) {
-                            return data[i];
+                            return tempValues[i];
                         }
                     }
                 },
@@ -217,6 +234,7 @@ const FACTORIES = {
         }
     },
 
+    /*
     "relative_humidity": {
         matches: _.matches({param: "wind", overlayType: "relative_humidity"}),
         create: function(attr) {
@@ -661,7 +679,7 @@ export function buildGrid(builder) {
 
     function interpolate(λ, φ) {
         var i = floorMod(λ - λ0, 360) / Δλ;  // calculate longitude index in wrapped range [0, 360)
-        var j = (φ0 - φ) / Δφ;                 // calculate latitude index in direction +90 to -90
+        var j = (φ0 - φ) / Δφ;                   // calculate latitude index in direction +90 to -90
 
         //         1      2           After converting λ and φ to fractional grid indexes i and j, we find the
         //        fi  i   ci          four points "G" that enclose point (i, j). These points are at the four
@@ -716,6 +734,5 @@ function productsFor(attributes) {
 }
 
 export default {
-    overlayTypes: new Set(_.keys(FACTORIES)),
     productsFor: productsFor
 };

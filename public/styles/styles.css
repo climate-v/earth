@@ -53,7 +53,7 @@ a:hover, a:focus, .no-touch .text-button:hover, .no-touch .text-button:focus, .t
     -webkit-transition: color 125ms ease-in;
 }
 
-p.invisible, span.invisible, #sponsor.invisible {
+p.invisible, span.invisible, #sponsor.invisible, div.invisible {
     display: none;
 }
 
@@ -140,6 +140,8 @@ body {
     max-height: 34rem;
     transition: opacity 250ms ease, max-height 250ms ease, margin-top 250ms ease;
     -webkit-transition: opacity 250ms ease, max-height 250ms ease, margin-top 250ms ease;
+    display: flex;
+    flex-direction: column;
 }
 
 #menu.invisible {
@@ -198,6 +200,38 @@ body {
     position: relative;
    	top: 0.3em;
    	font-size: 0.6em;
+}
+
+.menu-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.menu-row>:nth-child(1):after {
+    margin-left: 10px;
+    margin-right: 10px;
+    content: '|';
+}
+
+.about-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+#scale {
+    width: 100%;
+}
+
+#heightView {
+    width: 100%;
+}
+
+#overlayView {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
 }
 
 /**************************************************************************************************

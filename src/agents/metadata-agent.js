@@ -1,39 +1,46 @@
 import { LEVITATION_UNITS } from "../units";
 
-export const WIND_OVERLAY = "WIND";
-export const TEMPERATURE_OVERLAY = "TEMP";
+const TEMPERATURE_OVERLAY_VARIABLES = [
+    "temp"
+];
+
+export const WIND_OVERLAY = "wind";
+export const TEMPERATURE_OVERLAY = "temp";
 
 export const OVERLAYS = [
     WIND_OVERLAY,
     TEMPERATURE_OVERLAY
 ];
 
-function filterMatchingVariableWithUnit(api, dimensions, unit) {
+const OVERLAY_FACTORY = {
+    [WIND_OVERLAY]: createWindOverlay,
+    [TEMPERATURE_OVERLAY]: createTempOverlay
+}
+
+function filterMatchingAttribute(api, attribute, list, value) {
     let filter;
-    if(typeof unit === 'string') {
-        filter = (x) => x === unit;
+    if(typeof value === 'string') {
+        filter = (x) => x === value;
     } else {
-        filter = (x) => unit.includes(x);
+        filter = (x) => value.includes(x);
     }
 
-    return dimensions.find(dimension => {
-        const unit = api.getVariableStringAttribute(dimension, 'units');
+    return list.find(dimension => {
+        const unit = api.getVariableStringAttribute(dimension, attribute);
         return filter(unit);
     });
 }
 
-function filterMatchingVariableWithStandardName(api, variables, name) {
-    let filter;
-    if(typeof name === 'string') {
-        filter = (x) => x === name;
-    } else {
-        filter = (x) => name.includes(x);
-    }
+function filterMatchingVariableWithUnit(api, dimensions, unit) {
+    return filterMatchingAttribute(api, 'units', dimensions, unit);
+}
 
-    return variables.find(variable => {
-        const standardName = api.getVariableStringAttribute(variable, 'standard_name');
-        return filter(standardName);
-    });
+function filterMatchingVariableWithStandardName(api, variables, name) {
+    return filterMatchingAttribute(api, 'standard_name', variables, name);
+}
+
+function filterMatchingVariableWithLongName(api, variables, name) {
+    return filterMatchingAttribute(api, 'long_name', variables, name);
 }
 
 function findLevitationDimension(api, dimensions) {
@@ -60,8 +67,40 @@ function findTimeDimension(api, dimensions) {
     return filterMatchingVariableWithStandardName(api, dimensions, 'time');
 }
 
-function getAvailableOverlays() {
-    return [WIND_OVERLAY]; // TODO
+function createWindOverlay(api, variables) {
+    return {
+        displayName: "Wind",
+        u: {
+            name: findUWindVariable(api, variables)
+        },
+        v: {
+            name: findVWindVariable(api, variables)
+        }
+    }
+}
+
+function createTempOverlay(api, variables) {
+    const tempVariable = variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable))
+        || filterMatchingVariableWithLongName(api, variables, 'Temperature');
+    if(tempVariable != null) {
+        return {
+            displayName: "Temp",
+            name: tempVariable
+        };
+    } else {
+        return null;
+    }
+}
+
+function getAvailableOverlays(api, variables) {
+    const overlays = {};
+    OVERLAYS.forEach(overlay => {
+        const overlayConfig = OVERLAY_FACTORY[overlay](api, variables);
+        if(overlayConfig != null) {
+            overlays[overlay] = overlayConfig
+        }
+    });
+    return overlays;
 }
 
 function getTimeValues(api, timeVariable) {
@@ -82,10 +121,8 @@ export const MetadataAgent = {
 
         const config = {
             levitation: findLevitationDimension(api, dimensions),
-            latitude: findLatDimension(api, dimensions), // TODO this should be variable
+            latitude: findLatDimension(api, dimensions),
             longitude: findLonDimension(api, dimensions),
-            u: findUWindVariable(api, variables),
-            v: findVWindVariable(api, variables),
             time: findTimeDimension(api, dimensions)
         };
 
@@ -95,7 +132,7 @@ export const MetadataAgent = {
             }
         }
 
-        const availableOverlays = getAvailableOverlays(config);
+        const availableOverlays = getAvailableOverlays(api, variables);
 
         const timeValues = getTimeValues(api, config.time);
         const elevationLevels = getElevationLevels(api, config.levitation);
@@ -130,12 +167,6 @@ export const MetadataAgent = {
                     size: longitudeDimensionSize,
                     unit: api.getVariableStringAttribute(config.longitude, 'units'),
                     range: [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])]
-                },
-                u: {
-                    name: config.u
-                },
-                v: {
-                    name: config.v
                 }
             }
         }

@@ -24,7 +24,7 @@ import { clamp, distance, spread } from "./math";
 import µ from './micro';
 import products from "./products";
 import report from "./report";
-import { DateView, HeightModel, HeightView, TimeModel, TimeNavigationView } from "./ui";
+import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView } from "./ui";
 import { getSurfaceIndexForUnit } from "./units";
 import * as _ from 'underscore';
 
@@ -51,7 +51,7 @@ let api = null;
 
 // Construct the page's main internal components:
 
-const configuration = buildConfiguration(globes, products.overlayTypes);  // holds the page's current configuration settings
+const configuration = buildConfiguration(globes);  // holds the page's current configuration settings
 const inputController = buildInputController();             // interprets drag/zoom operations
 const meshAgent = newLoggedAgent();      // map data for the earth
 const globeAgent = newLoggedAgent();     // the model of the globe
@@ -67,6 +67,9 @@ const heightView = new HeightView({model: heightModel});
 const timeModel = new TimeModel();
 const timeView = new DateView({model: timeModel});
 const timeControlView = new TimeNavigationView({model: timeModel});
+const overlayModel = new OverlayModel();
+const overlayView = new OverlayView({model:overlayModel});
+overlayView.render();
 heightView.render();
 timeView.render();
 timeControlView.render();
@@ -1008,6 +1011,18 @@ function init() {
         });
     });
 
+    overlayModel.listenTo(metadataAgent, "update", () => {
+        overlayModel.set({overlays: metadataAgent.value().availableOverlays});
+    });
+
+    overlayModel.listenTo(configuration, "change:overlayType", () => {
+        overlayModel.set({currentOverlay: configuration.get("overlayType")});
+    });
+
+    configuration.listenTo(overlayModel, "change:currentOverlay", () => {
+        configuration.save({overlayType: overlayModel.get("currentOverlay")});
+    });
+
     metadataAgent.listenTo(fileAgent, "update", () => {
         metadataAgent.submit(() => MetadataAgent.buildMetadata(api));
     });
@@ -1098,26 +1113,6 @@ function init() {
     fieldAgent.on("update", updateLocationDetails);
     d3.select("#location-close").on("click", _.partial(clearLocationDetails, true));
 
-    // Modify menu depending on what mode we're in.
-    configuration.on("change:param", function(context, mode) {
-        d3.selectAll(".ocean-mode").classed("invisible", mode !== "ocean");
-        d3.selectAll(".wind-mode").classed("invisible", mode !== "wind");
-        switch(mode) {
-            case "wind":
-                d3.select("#nav-backward-more").attr("title", "-1 Day");
-                d3.select("#nav-backward").attr("title", "-3 Hours");
-                d3.select("#nav-forward").attr("title", "+3 Hours");
-                d3.select("#nav-forward-more").attr("title", "+1 Day");
-                break;
-            case "ocean":
-                d3.select("#nav-backward-more").attr("title", "-1 Month");
-                d3.select("#nav-backward").attr("title", "-5 Days");
-                d3.select("#nav-forward").attr("title", "+5 Days");
-                d3.select("#nav-forward-more").attr("title", "+1 Month");
-                break;
-        }
-    });
-
     // Add handlers for mode buttons.
     d3.select("#wind-mode-enable").on("click", function() {
         if(configuration.get("param") !== "wind") {
@@ -1154,24 +1149,6 @@ function init() {
         d3.select("#ocean-mode-enable").classed("highlighted", param === "ocean");
     });
 
-    // Add logic to disable buttons that are incompatible with each other.
-    configuration.on("change:overlayType", function(x, ot) {
-        d3.select("#surface-level").classed("disabled", ot === "air_density" || ot === "wind_power_density");
-    });
-    configuration.on("change:surface", function(x, s) {
-        d3.select("#overlay-air_density").classed("disabled", s === "surface");
-        d3.select("#overlay-wind_power_density").classed("disabled", s === "surface");
-    });
-
-    // Add event handlers for the time navigation buttons.
-    d3.select("#nav-backward-more").on("click", navigate.bind(null, -10));
-    d3.select("#nav-forward-more").on("click", navigate.bind(null, +10));
-    d3.select("#nav-backward").on("click", navigate.bind(null, -1));
-    d3.select("#nav-forward").on("click", navigate.bind(null, +1));
-    d3.select("#nav-now").on("click", function() {
-        configuration.save({ date: "current", hour: "" });
-    });
-
     d3.select("#option-show-grid").on("click", function() {
         configuration.save({ showGridPoints: !configuration.get("showGridPoints") });
     });
@@ -1181,14 +1158,6 @@ function init() {
 
     // Add handlers for ocean animation types.
     bindButtonToConfiguration("#animate-currents", { param: "ocean", surface: "surface", level: "currents" });
-
-    // Add handlers for all overlay buttons.
-    products.overlayTypes.forEach(function(type) {
-        bindButtonToConfiguration("#overlay-" + type, { overlayType: type });
-    });
-    bindButtonToConfiguration("#overlay-wind", { param: "wind", overlayType: "default" });
-    bindButtonToConfiguration("#overlay-ocean-off", { overlayType: "off" });
-    bindButtonToConfiguration("#overlay-currents", { overlayType: "default" });
 
     // Add handlers for all projection buttons.
     for(let projection of globes.keys()) {

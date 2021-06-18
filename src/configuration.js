@@ -1,5 +1,5 @@
-import micro from "./micro";
 import Backbone from 'backbone';
+import micro from "./micro";
 
 const DEFAULT_CONFIG = "0/wind/0/orthographic";
 const TOPOLOGY = micro.isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/earth-topo.json?v2";
@@ -18,10 +18,9 @@ const OPTION_SEPARATOR = "|";
  *
  * @param hash the hash fragment.
  * @param projectionNames the set of allowed projections.
- * @param overlayTypes the set of allowed overlays.
  * @returns {Object} the result of the parse.
  */
-function parse(hash, projectionNames, overlayTypes) {
+function parse(hash, projectionNames) {
     let result = {};
     //                  1     2      3    4    5
     const tokens = /^(\d+)\/(\w+)\/(\d+)([\/](.+))?/.exec(hash);
@@ -49,9 +48,7 @@ function parse(hash, projectionNames, overlayTypes) {
 
             switch(optionName) {
                 case 'overlay':
-                    if(overlayTypes.has(optionValue) || optionValue === "default") {
-                        result.overlayType = optionValue;
-                    }
+                    result.overlayType = optionValue;
                     break;
                 case 'grid':
                     if(optionValue === "on") {
@@ -81,7 +78,6 @@ function parse(hash, projectionNames, overlayTypes) {
 const Configuration = Backbone.Model.extend({
     id: 0,
     _projectionNames: null,
-    _overlayTypes: null,
 
     /**
      * @returns {String} this configuration converted to a hash fragment.
@@ -105,10 +101,8 @@ const Configuration = Backbone.Model.extend({
     sync(method, model, options) {
         switch(method) {
             case "read":
-                model.set(parse(
-                    window.location.hash.substr(1) || DEFAULT_CONFIG,
-                    model._projectionNames,
-                    model._overlayTypes));
+                let parsed = parse(window.location.hash.substr(1) || DEFAULT_CONFIG, model._projectionNames);
+                model.set(parsed);
                 break;
             case "update":
             case "create":
@@ -130,9 +124,8 @@ const Configuration = Backbone.Model.extend({
  *
  * @returns {Configuration} Model to represent the hash fragment, using the specified set of allowed projections.
  */
-export function buildConfiguration(projectionNames, overlayTypes) {
+export function buildConfiguration(projectionNames) {
     const result = new Configuration();
     result._projectionNames = projectionNames;
-    result._overlayTypes = overlayTypes;
     return result;
 }
