@@ -3,15 +3,16 @@
 <head>
     <meta charset="utf-8"/>
     <title>earth :: an animated map of global wind and weather</title>
-    <meta itemprop="name"                                      content="earth"/>
-    <meta itemprop="description"     name="description"        content="an animated map of global wind and weather"/>
-    <meta itemprop="author"          name="author"             content="Cameron Beccario"/>
+    <meta itemprop="name" content="earth"/>
+    <meta itemprop="description" name="description" content="an animated map of global wind and weather"/>
+    <meta itemprop="author" name="author" content="Cameron Beccario"/>
 
-    <meta property="og:type"        content="website"/>
-    <meta property="og:title"       content="earth"/>
-    <meta property="og:description" content="An animated map of global wind and weather. Visit the community at https://www.facebook.com/EarthWindMap"/>
-    <meta property="og:url"         content="http://earth.nullschool.net"/>
-    <meta property="og:image"       content="http://earth.nullschool.net/preview.jpg"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="earth"/>
+    <meta property="og:description"
+          content="An animated map of global wind and weather. Visit the community at https://www.facebook.com/EarthWindMap"/>
+    <meta property="og:url" content="http://earth.nullschool.net"/>
+    <meta property="og:image" content="http://earth.nullschool.net/preview.jpg"/>
 
     <link rel="shortcut icon" href="/favicon.ico"/>
     <link rel="apple-touch-icon" sizes="120x120" href="/iphone-icon.png"/>
@@ -60,45 +61,57 @@
         </p>
 
         <div id="menu" class="invisible">
-            <div class="menu-row"><div>Date</div>
+            <div class="menu-row">
+                <div>Date</div>
                 <div id="dateView"></div>
             </div>
-            <div class="menu-row"><div>Data</div><div id="data-layer"></div></div>
-            <div class="menu-row"><div id="scale-label">Scale</div><canvas id="scale"></canvas></div>
-            <div class="menu-row"><div>Source</div><span id="data-center"></span></div>
-            <div class="menu-row"><div>Control</div><div>
+            <div class="menu-row">
+                <div>Data</div>
+                <div id="data-layer"></div>
+            </div>
+            <div class="menu-row">
+                <div id="scale-label">Scale</div>
+                <canvas id="scale"></canvas>
+            </div>
+            <div class="menu-row">
+                <div>Source</div>
+                <span id="data-center"></span></div>
+            <div class="menu-row">
+                <div>Control</div>
+                <div>
                     <span id="timeControlView"></span>
                     <span class="text-button" id="show-location" title="Current Position">〖◯〗</span>
                     <span class="text-button" id="option-show-grid" title="Toggle Grid">Grid</span>
                 </div>
             </div>
-            <div class="menu-row"><div>Mode</div><div><span
-                class="text-button" id="wind-mode-enable">Air</span> – <span
-                class="text-button" id="ocean-mode-enable">Ocean</span></div>
+            <div class="menu-row">
+                <div>Mode</div>
+                <div>
+                    <span class="text-button" id="wind-mode-enable">Air</span> –
+                    <span class="text-button" id="ocean-mode-enable">Ocean</span>
+                </div>
             </div>
             <div class="wind-mode menu-row">
                 <div>Height</div>
                 <div id="heightView"></div>
             </div>
-            <div class="wind-mode menu-row"><div>Overlay</div>
+            <div class="wind-mode menu-row">
+                <div>Overlay</div>
                 <div id="overlayView"></div>
-                <!--<span class="text-button" id="overlay-off">None</span> –
-                <span class="text-button" id="overlay-wind" title="Wind Speed">Wind</span> –
-                <span class="text-button" id="overlay-temp" title="Temperature">Temp</span> –
-                <span class="text-button" id="overlay-relative_humidity" title="Relative Humidity">RH</span> –
-                <span class="text-button" id="overlay-air_density" title="Air Density">AD</span> –
-                <span class="text-button" id="overlay-wind_power_density" title="Wind Power Density">WPD</span>-->
             </div>
-            <div class="ocean-mode invisible menu-row"><div>Animate</div>
+            <div class="ocean-mode invisible menu-row">
+                <div>Animate</div>
                 <span class="text-button" id="animate-currents" title="Currents">Currents</span>
             </div>
-            <div class="ocean-mode invisible menu-row"><div>Overlay</div>
+            <div class="ocean-mode invisible menu-row">
+                <div>Overlay</div>
                 <div>
                     <span class="text-button" id="overlay-ocean-off">None</span> –
                     <span class="text-button" id="overlay-currents" title="Currents">Currents</span>
                 </div>
             </div>
-            <div class="menu-row"><div>Projection</div>
+            <div class="menu-row">
+                <div>Projection</div>
                 <div>
                     <span class="proj text-button" id="atlantis" title="Atlantis">A</span> –
                     <span class="proj text-button" id="azimuthal_equidistant" title="Azimuthal Equidistant">AE</span> –
