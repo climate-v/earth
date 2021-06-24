@@ -53,7 +53,7 @@ export const HeightView = Backbone.View.extend({
             const index = (inverted ? (this.model.attributes.values.length - 1) - this.model.attributes.selected : this.model.attributes.selected);
             this.$el.html(this.genericTemplate({...this.model.attributes, selectedDisplay: index}));
             this.delegateEvents({
-                'click #heightValueSlider': (ev) => {
+                'change #heightValueSlider': (ev) => {
                     if(inverted) {
                         this.model.set({ selected: (this.model.attributes.values.length - 1) - ev.target.value });
                     } else {
