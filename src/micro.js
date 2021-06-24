@@ -280,6 +280,10 @@ function distortion(projection, λ, φ, x, y) {
     ];
 }
 
+function scaled(value, min, max) {
+    return Math.abs((value - min) / (max - min));
+}
+
 export default {
     isTruthy: isTruthy,
     isValue: isValue,
@@ -294,6 +298,7 @@ export default {
     clearCanvas: clearCanvas,
     sinebowColor: sinebowColor,
     extendedSinebowColor: extendedSinebowColor,
+    scaled,
     windIntensityColorScale: windIntensityColorScale,
     segmentedColorScale: segmentedColorScale,
     formatCoordinates: formatCoordinates,

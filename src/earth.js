@@ -250,23 +250,13 @@ function buildGlobe(projectionName) {
 function buildGrids() {
     report.status("Building grid...");
     log.time("build grids");
-    const selectedProducts = products.productsFor(configuration.attributes);
+    const selectedProducts = products.productsFor(configuration.attributes, metadataAgent.value());
     const builtProducts = selectedProducts.map(product => {
-        return product.build(api, metadataAgent.value(), fileAgent.value());
+        return product.build(api, fileAgent.value());
     });
     log.time("build grids");
 
     return { primaryGrid: builtProducts[0], overlayGrid: builtProducts[1] || builtProducts[0] };
-}
-
-/**
- * Modifies the configuration to navigate to the chronologically next or previous data layer.
- */
-function navigate(step) {
-    const next = gridAgent.value().primaryGrid.navigate(step);
-    if(next) {
-        configuration.save(dateToConfig(next));
-    }
 }
 
 function buildRenderer(mesh, globe) {
@@ -1138,11 +1128,13 @@ function init() {
                 configuration.save(ocean);
             } else {
                 try {
-                    const matchedProducts = products.productsFor(_.extend(attr, ocean));
-                    const firstProduct = matchedProducts[0];
-                    if(firstProduct.date) {
-                        configuration.save(_.extend(ocean, dateToConfig(firstProduct.date)));
-                    }
+                    // This is broken due to not having the date in the header anymore
+                    // if we need this again, this needs to be adapted to that change
+                    // const matchedProducts = products.productsFor(_.extend(attr, ocean));
+                    // const firstProduct = matchedProducts[0];
+                    // if(firstProduct.date) {
+                    //     configuration.save(_.extend(ocean, dateToConfig(firstProduct.date)));
+                    // }
                 } catch(ex) {
                     report.error(ex);
                 }

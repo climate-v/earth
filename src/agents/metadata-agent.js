@@ -67,6 +67,11 @@ function findTimeDimension(api, dimensions) {
     return filterMatchingVariableWithStandardName(api, dimensions, 'time');
 }
 
+function variableHasCorrectDimensions(api, variable, dimensions) {
+    const dimensionsForVariable = api.getVariableDimensions(variable).split(",");
+    return dimensionsForVariable.length === dimensions.length && dimensionsForVariable.every(dim => dimensions.includes(dim));
+}
+
 function createWindOverlay(api, variables) {
     let uVariableName = findUWindVariable(api, variables);
     let vVariableName = findVWindVariable(api, variables);
@@ -127,7 +132,7 @@ function getAvailableOverlays(api, allVariables, dimensions) {
         }
     });
 
-    variables.forEach(variable => {
+    variables.filter(variable => variableHasCorrectDimensions(api, variable, dimensions)).forEach(variable => {
         let overlay = createGenericOverlay(api, variable, dimensions);
         if(overlay != null) {
             overlays.push(overlay);
