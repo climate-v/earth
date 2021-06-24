@@ -1166,6 +1166,12 @@ function init() {
         view = µ.view();
         globeAgent.submit(buildGlobe, configuration.get("projection"));
     });
+
+    d3.select(window).on("resize", () => {
+        view = µ.view();
+        globeAgent.submit(buildGlobe, configuration.get("projection"));
+        d3.selectAll(".fill-screen").attr("width", view.width).attr("height", view.height);
+    });
 }
 
 function start(createdApi) {
