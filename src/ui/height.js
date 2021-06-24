@@ -14,12 +14,16 @@ const DistinctHeightTemplate = `
 `;
 
 const GenericHeightTemplate = `
-    <input style="width: 50%" type="range" min="0" max="<%= values.length - 1 %>" value="<%= selected %>" class="slider" id="heightValueSlider" />
-    <%= values[selected] %> <%= unit %>
+    <input style="width: 50%" type="range" min="0" max="<%= values.length - 1 %>" value="<%= selectedDisplay %>" class="slider" id="heightValueSlider" />
+    <%= values[selectedDisplay] %> <%= unit %>
 `;
 
 function shouldRenderDistinct(model) {
     return model.attributes.values.length <= 7;
+}
+
+function isUnitDirectionReversed(unit) {
+    return ['m', 'km'].includes(unit);
 }
 
 export const HeightView = Backbone.View.extend({
@@ -45,10 +49,16 @@ export const HeightView = Backbone.View.extend({
                 }
             });
         } else {
-            this.$el.html(this.genericTemplate(this.model.attributes));
+            const inverted = isUnitDirectionReversed(this.model.attributes.unit);
+            const index = (inverted ? (this.model.attributes.values.length - 1) - this.model.attributes.selected : this.model.attributes.selected);
+            this.$el.html(this.genericTemplate({...this.model.attributes, selectedDisplay: index}));
             this.delegateEvents({
                 'click #heightValueSlider': (ev) => {
-                    this.model.set({ selected: ev.target.value });
+                    if(inverted) {
+                        this.model.set({ selected: (this.model.attributes.values.length - 1) - ev.target.value });
+                    } else {
+                        this.model.set({ selected: ev.target.value });
+                    }
                 }
             });
         }
