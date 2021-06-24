@@ -141,6 +141,7 @@ body {
     -webkit-transition: opacity 250ms ease, max-height 250ms ease, margin-top 250ms ease;
     display: flex;
     flex-direction: column;
+    max-width: min(75vw, 1000px);
 }
 
 #menu.invisible {
