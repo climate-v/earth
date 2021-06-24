@@ -221,6 +221,7 @@ body {
 
 #scale {
     width: 100%;
+    max-height: 30px;
 }
 
 #heightView {
