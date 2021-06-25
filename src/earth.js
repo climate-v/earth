@@ -12,12 +12,12 @@ import 'jquery';
 import Backbone from 'backbone';
 import * as d3 from 'd3';
 import * as topojson from "topojson-client";
-import { createApi } from "./api";
+import * as _ from 'underscore';
 import { newLoggedAgent } from "./agents/agents";
 import { downloadFile, loadFile } from "./agents/file-agent";
 import { MetadataAgent } from "./agents/metadata-agent";
+import { createApi } from "./api";
 import { buildConfiguration } from "./configuration";
-import { dateToConfig } from "./date";
 import globes from "./globes";
 import log from './log';
 import { clamp, distance, spread } from "./math";
@@ -26,7 +26,6 @@ import products from "./products";
 import report from "./report";
 import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView } from "./ui";
 import { getSurfaceIndexForUnit } from "./units";
-import * as _ from 'underscore';
 
 const MAX_TASK_TIME = 100;                  // amount of time before a task yields control (millis)
 const MIN_SLEEP_TIME = 25;                  // amount of time a task waits before resuming (millis)
@@ -820,13 +819,39 @@ function bindButtonToConfiguration(elementId, newAttr, keys) {
     });
 }
 
+function isUrl(string) {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch(e) {
+        return false;
+    }
+}
+
 function collectAllFilesFromDrop(dropEvent) {
     const allFiles = [];
+
     if(dropEvent.dataTransfer.items) {
         for(let i = 0; i < dropEvent.dataTransfer.items.length; i++) {
-            if(dropEvent.dataTransfer.items[i].kind === 'file') {
-                const file = dropEvent.dataTransfer.items[i].getAsFile();
+            const item = dropEvent.dataTransfer.items[i];
+            if(item.kind === 'file') {
+                const file = item.getAsFile();
                 allFiles.push(file);
+            } else if(item.kind === 'string' && item.type === 'text/uri-list') {
+                allFiles.push(new Promise(resolve => {
+                    item.getAsString(resolve);
+                }));
+            } else if(item.kind === 'string' && item.type === 'text/plain') {
+                let urlCheck = new Promise(resolve => {
+                    item.getAsString(resolve);
+                }).then(urlCandidate => {
+                    if(isUrl(urlCandidate)) {
+                        return urlCandidate;
+                    } else {
+                        return null;
+                    }
+                });
+                allFiles.push(urlCheck);
             }
         }
     } else {
@@ -834,7 +859,13 @@ function collectAllFilesFromDrop(dropEvent) {
             allFiles.push(dropEvent.dataTransfer.files[i]);
         }
     }
-    return allFiles;
+
+    // We need to do a non-null filter because of the URL check
+    // and we also filter for duplicates because dropping a URL can result in multiple
+    // dataTransfer items, e.g. one with text/plain and one with text/uri-list.
+    return Promise.all(allFiles)
+        .then(results => results.filter(elem => elem != null))
+        .then(results => [...new Set(results)]);
 }
 
 /**
@@ -850,10 +881,10 @@ function init() {
         ev.preventDefault();
     });
 
-    display.addEventListener("drop", (ev) => {
+    display.addEventListener("drop", async (ev) => {
         ev.stopPropagation();
         ev.preventDefault();
-        const allFiles = collectAllFilesFromDrop(ev);
+        const allFiles = await collectAllFilesFromDrop(ev);
 
         if(allFiles.length > 1) {
             report.error("Too many files dropped, please only drop one.");
@@ -862,12 +893,16 @@ function init() {
 
         if(allFiles.length === 1) {
             const file = allFiles[0];
-            if(!file.name.endsWith(".nc")) {
-                report.error("Did not detect a NetCDF file.");
-                return;
-            }
+            if(typeof file === 'string') {
+                configuration.save({ file });
+            } else {
+                if(!file.name.endsWith(".nc")) {
+                    report.error("Did not detect a NetCDF file.");
+                    return;
+                }
 
-            fileAgent.submit(loadFile, api, file);
+                fileAgent.submit(loadFile, api, file);
+            }
         }
     })
 
