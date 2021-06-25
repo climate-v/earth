@@ -288,7 +288,7 @@ const FACTORIES = {
                     const longitudeDimensionSize = metadata.dimensions.longitude.size;
 
                     const values = api.getVariableValues(overlayDef.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                    const unit = api.getVariableStringAttribute('units');
+                    const unit = api.getVariableStringAttribute(overlayDef.name, 'units');
                     const minValue = fastArrayMin(values);
                     const maxValue = fastArrayMax(values);
 
