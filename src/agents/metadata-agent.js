@@ -1,5 +1,3 @@
-import { LEVITATION_UNITS } from "../units";
-
 const TEMPERATURE_OVERLAY_VARIABLES = [
     "temp"
 ];
@@ -17,9 +15,19 @@ const OVERLAY_FACTORIES = {
     [TEMPERATURE_OVERLAY]: createTempOverlay
 }
 
+function findFirstMatching(...getters) {
+    for(let getter of getters) {
+        const result = getter();
+        if(result != null) {
+            return result;
+        }
+    }
+    return null;
+}
+
 function filterMatchingAttribute(api, attribute, list, value) {
     let filter;
-    if(typeof value === 'string') {
+    if(typeof value === "string") {
         filter = (x) => x === value;
     } else {
         filter = (x) => value.includes(x);
@@ -32,39 +40,53 @@ function filterMatchingAttribute(api, attribute, list, value) {
 }
 
 function filterMatchingVariableWithUnit(api, dimensions, unit) {
-    return filterMatchingAttribute(api, 'units', dimensions, unit);
+    return filterMatchingAttribute(api, "units", dimensions, unit);
 }
 
 function filterMatchingVariableWithStandardName(api, variables, name) {
-    return filterMatchingAttribute(api, 'standard_name', variables, name);
+    return filterMatchingAttribute(api, "standard_name", variables, name);
 }
 
 function filterMatchingVariableWithLongName(api, variables, name) {
-    return filterMatchingAttribute(api, 'long_name', variables, name);
+    return filterMatchingAttribute(api, "long_name", variables, name);
 }
 
 function findLevitationDimension(api, dimensions) {
-    return filterMatchingVariableWithUnit(api, dimensions, LEVITATION_UNITS);
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "axis", dimensions, "Z"),
+        () => filterMatchingVariableWithStandardName(api, dimensions, "height")
+    );
 }
 
 function findLatDimension(api, dimensions) {
-    return filterMatchingVariableWithUnit(api, dimensions, 'degrees_north');
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "axis", dimensions, "Y"),
+        () => filterMatchingVariableWithUnit(api, dimensions, "degrees_north"),
+        () => filterMatchingVariableWithStandardName(api, dimensions, "latitude")
+    );
 }
 
 function findLonDimension(api, dimensions) {
-    return filterMatchingVariableWithUnit(api, dimensions, 'degrees_east');
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "axis", dimensions, "X"),
+        () => filterMatchingVariableWithUnit(api, dimensions, "degrees_east"),
+        () => filterMatchingVariableWithStandardName(api, dimensions, "longitude")
+    );
 }
 
 function findUWindVariable(api, variables) {
-    return filterMatchingVariableWithStandardName(api, variables, 'eastward_wind');
+    return filterMatchingVariableWithStandardName(api, variables, "eastward_wind");
 }
 
 function findVWindVariable(api, variables) {
-    return filterMatchingVariableWithStandardName(api, variables, 'northward_wind');
+    return filterMatchingVariableWithStandardName(api, variables, "northward_wind");
 }
 
 function findTimeDimension(api, dimensions) {
-    return filterMatchingVariableWithStandardName(api, dimensions, 'time');
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "axis", dimensions, "T"),
+        () => filterMatchingVariableWithStandardName(api, dimensions, "time")
+    );
 }
 
 function variableHasCorrectDimensions(api, variable, dimensions) {
@@ -94,7 +116,7 @@ function createWindOverlay(api, variables) {
 
 function createTempOverlay(api, variables) {
     const tempVariable = variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable))
-        || filterMatchingVariableWithLongName(api, variables, 'Temperature');
+        || filterMatchingVariableWithLongName(api, variables, "Temperature");
     if(tempVariable != null) {
         variables.splice(variables.indexOf(tempVariable), 1);
         return {
@@ -152,11 +174,11 @@ function getElevationLevels(api, levitationVariable) {
 
 export const MetadataAgent = {
     buildMetadata(api) {
-        const dimensions = api.getDimensions().split(',');
-        const variables = api.getVariables().split(',');
+        const dimensions = api.getDimensions().split(",");
+        const variables = api.getVariables().split(",");
 
-        const centerName = api.getStringAttribute('institution');
-        const title = api.getStringAttribute('title');
+        const centerName = api.getStringAttribute("institution");
+        const title = api.getStringAttribute("title");
 
         const config = {
             levitation: findLevitationDimension(api, dimensions),
@@ -199,13 +221,13 @@ export const MetadataAgent = {
                 latitude: {
                     name: config.latitude,
                     size: latitudeDimensionSize,
-                    unit: api.getVariableStringAttribute(config.latitude, 'units'),
+                    unit: api.getVariableStringAttribute(config.latitude, "units"),
                     range: [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])]
                 },
                 longitude: {
                     name: config.longitude,
                     size: longitudeDimensionSize,
-                    unit: api.getVariableStringAttribute(config.longitude, 'units'),
+                    unit: api.getVariableStringAttribute(config.longitude, "units"),
                     range: [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])]
                 }
             }
