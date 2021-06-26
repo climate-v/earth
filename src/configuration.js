@@ -59,7 +59,7 @@ function parse(hash, projectionNames) {
                     result.file = optionValue;
                     break;
                 default:
-                    if(projectionNames.has(optionName) && /^[\d\-.,]*$/.test(optionValue)) {
+                    if(projectionNames.has(optionName) && (/^[\d\-.,]*$/.test(optionValue) || optionValue == null)) {
                         result.projection = optionName;
                         result.orientation = optionValue;
                     }
