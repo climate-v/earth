@@ -192,8 +192,9 @@ export const MetadataAgent = {
                 levitation: {
                     name: config.levitation,
                     values: elevationLevels,
-                    unit: api.getVariableStringAttribute(config.levitation, 'units'),
-                    size: elevationLevels.length
+                    unit: api.getVariableStringAttribute(config.levitation, "units"),
+                    size: elevationLevels.length,
+                    inverted: api.getVariableStringAttribute(config.levitation, "positive") !== "down"
                 },
                 latitude: {
                     name: config.latitude,

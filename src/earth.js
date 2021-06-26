@@ -904,7 +904,7 @@ function init() {
                 fileAgent.submit(loadFile, api, file);
             }
         }
-    })
+    });
 
     d3.select("#sponsor-hide").on("click", function() {
         d3.select("#sponsor").classed("invisible", true);
@@ -1001,10 +1001,12 @@ function init() {
     heightModel.listenTo(metadataAgent, "update", () => {
         const values = metadataAgent.value().dimensions.levitation.values;
         const unit = metadataAgent.value().dimensions.levitation.unit;
+        const inverted = metadataAgent.value().dimensions.levitation.inverted;
 
         heightModel.set({
             values,
-            unit
+            unit,
+            inverted
         });
     });
 

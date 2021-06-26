@@ -22,10 +22,6 @@ function shouldRenderDistinct(model) {
     return model.attributes.values.length <= 7;
 }
 
-function isUnitDirectionReversed(unit) {
-    return ['m', 'km'].includes(unit);
-}
-
 export const HeightView = Backbone.View.extend({
     el: '#heightView',
     template: _.template(DefaultHeightTemplate),
@@ -49,7 +45,7 @@ export const HeightView = Backbone.View.extend({
                 }
             });
         } else {
-            const inverted = isUnitDirectionReversed(this.model.attributes.unit);
+            const inverted = this.model.attributes.inverted;
             const index = (inverted ? (this.model.attributes.values.length - 1) - this.model.attributes.selected : this.model.attributes.selected);
             this.$el.html(this.genericTemplate({...this.model.attributes, selectedDisplay: index}));
             this.delegateEvents({
