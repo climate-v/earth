@@ -180,11 +180,23 @@ const FACTORIES = {
                         throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
                     }
 
+                    const combinedValues = vValues.map((value, index) => {
+                        return (Math.pow(value, 2)) + Math.pow(uValues[index], 2);
+                    });
+                    const maxSquared = fastArrayMax(combinedValues);
+                    const max = Math.sqrt(maxSquared);
+
                     return {
                         header: createHeader(metadata, time),
                         interpolate: bilinearInterpolateVector,
                         data: function(i) {
                             return [uValues[i], vValues[i]];
+                        },
+                        scale: {
+                            bounds: [0, max],
+                            gradient: function(v, a) {
+                                return µ.extendedSinebowColor(v / max, a);
+                            }
                         }
                     }
                 },
@@ -194,12 +206,6 @@ const FACTORIES = {
                     {label: "kn",   conversion: function(x) { return x * 1.943844; }, precision: 0},
                     {label: "mph",  conversion: function(x) { return x * 2.236936; }, precision: 0}
                 ],
-                scale: {
-                    bounds: [0, 100],
-                    gradient: function(v, a) {
-                        return µ.extendedSinebowColor(Math.min(v, 100) / 100, a);
-                    }
-                },
                 particles: {velocityScale: 1/60000, maxIntensity: 17}
             });
         }
