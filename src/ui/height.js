@@ -1,5 +1,6 @@
 import Backbone from 'backbone';
 import * as _ from "underscore";
+import { HEIGHT_DIRECTION } from "../agents/metadata-agent";
 import { getSurfaceIndexForUnit } from "../units";
 
 const DefaultHeightTemplate = `
@@ -32,6 +33,7 @@ export const HeightView = Backbone.View.extend({
     },
     render() {
         const values = this.model.get("values");
+        const direction = this.model.get("direction");
         if(values.length === 0) {
             this.$el.html(this.template(this.model.attributes));
         } else if(shouldRenderDistinct(this.model)) {
@@ -45,7 +47,7 @@ export const HeightView = Backbone.View.extend({
                 }
             });
         } else {
-            const inverted = this.model.attributes.inverted;
+            const inverted = direction === HEIGHT_DIRECTION.HIGH_TO_LOW;
             const index = (inverted ? (this.model.attributes.values.length - 1) - this.model.attributes.selected : this.model.attributes.selected);
             this.$el.html(this.genericTemplate({...this.model.attributes, selectedDisplay: index}));
             this.delegateEvents({

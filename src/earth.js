@@ -1001,12 +1001,12 @@ function init() {
     heightModel.listenTo(metadataAgent, "update", () => {
         const values = metadataAgent.value().dimensions.levitation.values;
         const unit = metadataAgent.value().dimensions.levitation.unit;
-        const inverted = metadataAgent.value().dimensions.levitation.inverted;
+        const direction = metadataAgent.value().dimensions.levitation.direction;
 
         heightModel.set({
             values,
             unit,
-            inverted
+            direction
         });
     });
 

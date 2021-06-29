@@ -13,7 +13,12 @@ export const SPECIAL_OVERLAYS = [
 const OVERLAY_FACTORIES = {
     [WIND_OVERLAY]: createWindOverlay,
     [TEMPERATURE_OVERLAY]: createTempOverlay
-}
+};
+
+export const HEIGHT_DIRECTION = {
+    LOW_TO_HIGH: "lth",
+    HIGH_TO_LOW: "htl"
+};
 
 function findFirstMatching(...getters) {
     for(let getter of getters) {
@@ -172,6 +177,30 @@ function getElevationLevels(api, levitationVariable) {
     return api.getAllVariableValues(levitationVariable);
 }
 
+function getDimensionDirection(values, inverted) {
+    if(values.length <= 1) {
+        return HEIGHT_DIRECTION.LOW_TO_HIGH;
+    }
+
+    const firstValue = values[0];
+    const lastValue = values[values.length - 1];
+    if(firstValue < lastValue) {
+        if(inverted) {
+            return HEIGHT_DIRECTION.HIGH_TO_LOW;
+        } else {
+            return HEIGHT_DIRECTION.LOW_TO_HIGH;
+        }
+    } else if(firstValue > lastValue) {
+        if(inverted) {
+            return HEIGHT_DIRECTION.LOW_TO_HIGH;
+        } else {
+            return HEIGHT_DIRECTION.HIGH_TO_LOW;
+        }
+    } else {
+        throw new Error("Height values stayed the same. This should not happen.");
+    }
+}
+
 export const MetadataAgent = {
     buildMetadata(api) {
         const dimensions = api.getDimensions().split(",");
@@ -197,6 +226,8 @@ export const MetadataAgent = {
 
         const timeValues = getTimeValues(api, config.time);
         const elevationLevels = getElevationLevels(api, config.levitation);
+        let inverted = api.getVariableStringAttribute(config.levitation, "positive") !== "down";
+        const elevationDirection = getDimensionDirection(elevationLevels, inverted);
 
         const longitudeDimensionSize = api.getDimensionLength(config.longitude);
         const latitudeDimensionSize = api.getDimensionLength(config.latitude);
@@ -216,7 +247,7 @@ export const MetadataAgent = {
                     values: elevationLevels,
                     unit: api.getVariableStringAttribute(config.levitation, "units"),
                     size: elevationLevels.length,
-                    inverted: api.getVariableStringAttribute(config.levitation, "positive") !== "down"
+                    direction: elevationDirection
                 },
                 latitude: {
                     name: config.latitude,
