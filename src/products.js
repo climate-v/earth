@@ -743,6 +743,7 @@ export function buildGrid(builder) {
 
     const header = builder.header;
     var λ0 = header.lo1, φ0 = header.la1;  // the grid's origin (e.g., 0.0E, 90.0N)
+    var λ1 = header.lo2, φ1 = header.la2;
     var Δλ = header.dx, Δφ = header.dy;    // distance between grid points (e.g., 2.5 deg lon, 2.5 deg lat)
     var ni = header.nx, nj = header.ny;    // number of grid points W-E and N-S (e.g., 144 x 73)
     const date = new Date(header.refTime);
@@ -770,6 +771,12 @@ export function buildGrid(builder) {
     }
 
     function interpolate(λ, φ) {
+        if(λ < λ0 || λ > λ1) {
+            return null;
+        } else if(φ < φ1 || φ > φ0) {
+            return null;
+        }
+
         var i = floorMod(λ - λ0, 360) / Δλ;  // calculate longitude index in wrapped range [0, 360)
         var j = (φ0 - φ) / Δφ;                   // calculate latitude index in direction +90 to -90
 
