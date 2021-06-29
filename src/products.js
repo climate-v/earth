@@ -89,18 +89,26 @@ function createHeader(metadata, time) {
     const latitudeDimensionSize = metadata.dimensions.latitude.size;
     const longitudeDimensionSize = metadata.dimensions.longitude.size;
 
+    const latMin = Math.min(...latValueRange);
+    const latMax = Math.max(...latValueRange);
+    const latTotalRange = Math.abs(latMax - latMin);
+
+    const lonMin = Math.min(...lonValueRange);
+    const lonMax = Math.max(...lonValueRange);
+    const lonTotalRange = Math.abs(lonMax - lonMin);
+
     return {
         centerName: metadata.centerName,
-        dx: 360 / longitudeDimensionSize,
-        dy: 180 / latitudeDimensionSize,
+        dx: lonTotalRange / longitudeDimensionSize,
+        dy: latTotalRange / latitudeDimensionSize,
         gridUnits: "degrees",
         refTime: date.toISOString(),
         forecastTime: 0, // maybe we should change this?
-        la1: Math.max(...latValueRange),
-        la2: Math.min(...latValueRange),
+        la1: latMax,
+        la2: latMin,
         flipped: latValueRange[0] < latValueRange[1], // We need to set it 'flipped' if -90 is at the start
-        lo1: Math.min(...lonValueRange),
-        lo2: Math.max(...lonValueRange),
+        lo1: lonMin,
+        lo2: lonMax,
         nx: longitudeDimensionSize,
         ny: latitudeDimensionSize
     }
