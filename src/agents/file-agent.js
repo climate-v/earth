@@ -3,6 +3,8 @@ import report from "../report";
 import {last} from "underscore";
 
 const WEATHER_PATH = "/data/weather";
+const FIVE_GIGABYTES = 1024 * 1024 * 1024 * 5;
+
 
 function isURL(string) {
     let url;
@@ -27,6 +29,10 @@ function getFileInfo(param) {
     }
 }
 
+function isFileTooLargeToLoad(file) {
+    return file.size >= FIVE_GIGABYTES;
+}
+
 export function loadFile(api, file) {
     const currentFile = this.value();
     if(currentFile != null) {
@@ -41,7 +47,13 @@ export function loadFile(api, file) {
             type: "local",
             path: file.name
         }
-    }));
+    })).catch(ex => {
+        if(ex instanceof DOMException && isFileTooLargeToLoad(file)) {
+            throw new Error("Chrome does not support loading large files. Please try with Firefox instead.");
+        } else {
+            throw ex;
+        }
+    });
 }
 
 export function downloadFile(api, filename) {
