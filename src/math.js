@@ -40,3 +40,14 @@ export function proportion(x, low, high) {
 export function spread(p, low, high) {
     return p * (high - low) + low;
 }
+
+export function radiansToDegrees(radians) {
+    return radians * (180 / Math.PI);
+}
+
+export function degreeToIndexWithStepCount(degree, steps) {
+    const floored = Math.floor(degree);
+    const difference = degree - floored;
+
+    return Math.round(floored * steps + (difference * steps));
+}

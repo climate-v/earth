@@ -7,8 +7,9 @@
  * https://github.com/cambecc/earth
  */
 import _ from 'underscore'
+import { ArrayGrid } from "./array-grid";
 import { floatToDate } from "./date";
-import { floorMod } from "./math";
+import { degreeToIndexWithStepCount, floorMod, radiansToDegrees } from "./math";
 import µ from './micro';
 
 // const WEATHER_PATH = "/data/weather";
@@ -79,6 +80,27 @@ function localize(table) {
     }
 }
 
+function createIrregularHeader(metadata, time, gridDescription) {
+    const timeValue = metadata.dimensions.time.values[time];
+    const date = floatToDate(timeValue);
+
+    return {
+        centerName: metadata.centerName,
+        dx: 1 / gridDescription.stepping,
+        dy: 1 / gridDescription.stepping,
+        gridUnits: "degrees",
+        refTime: date.toISOString(),
+        forecastTime: 0, // maybe we should change this?
+        la1: gridDescription.y.max,
+        la2: gridDescription.y.min,
+        flipped: true,
+        lo1: gridDescription.x.min,
+        lo2: gridDescription.x.max,
+        nx: gridDescription.width,
+        ny: gridDescription.height
+    }
+}
+
 function createHeader(metadata, time) {
     const timeValue = metadata.dimensions.time.values[time];
     const date = floatToDate(timeValue);
@@ -145,6 +167,46 @@ function findRequiredPrecision(min, max) {
     return necessaryPrecision + 1;
 }
 
+function convertLonRadianArray(latValues) {
+    return latValues.map(lat => (radiansToDegrees(lat) - (-180)) % 360);
+}
+
+function convertLatRadianArray(lonValues) {
+    return lonValues.map(lon => (radiansToDegrees(lon) - (-90)) % 180);
+}
+
+function getIrregularGridDescription(latValues, lonValues) {
+    const latMin = Math.round(fastArrayMin(latValues)), latMax = Math.round(fastArrayMax(latValues));
+    const lonMin = Math.round(fastArrayMin(lonValues)), lonMax = Math.round(fastArrayMax(lonValues));
+
+    const gridHeight = (latMax - latMin) + 1;
+    const gridWidth = (lonMax - lonMin) + 1;
+    const stepping = 2;
+
+    return {
+        x: {
+            min: lonMin,
+            max: lonMax
+        },
+        y: {
+            min: latMin,
+            max: latMax
+        },
+        width: gridWidth * stepping,
+        height: gridHeight * stepping,
+        stepping,
+        createGrid() {
+            return new ArrayGrid(this.width, this.height);
+        },
+        latToGridPos(lat) {
+            return degreeToIndexWithStepCount(lat, this.stepping);
+        },
+        lonToGridPos(lon) {
+            return degreeToIndexWithStepCount(lon, this.stepping);
+        }
+    }
+}
+
 const FACTORIES = {
     "wind": {
         matches: _.matches({param: "wind"}),
@@ -169,25 +231,64 @@ const FACTORIES = {
                 }),
                 builder: function(api) {
                     const windOverlay = metadata.availableOverlays.find(overlay => overlay.type === "wind");
-                    const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                    const longitudeDimensionSize = metadata.dimensions.longitude.size;
-                    let uValues = [];
-                    let vValues = [];
-                    try {
-                        vValues = api.getVariableValues(windOverlay.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                        uValues = api.getVariableValues(windOverlay.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                    } catch(er) {
-                        throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
+                    let uValues, vValues;
+                    let max = 0;
+                    let header;
+                    if(metadata.irregular != null) {
+                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
+                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const cellCount = metadata.irregular.cellCount;
+
+                        const uGridValues = api.getVariableValues(windOverlay.u.name, [time, height, 0], [1, 1, cellCount]);
+                        const vGridValues = api.getVariableValues(windOverlay.v.name, [time, height, 0], [1, 1, cellCount]);
+
+                        const gridDescription = getIrregularGridDescription(lat, lon);
+
+                        const uGrid = gridDescription.createGrid();
+                        const vGrid = gridDescription.createGrid();
+
+                        for(let i = 0; i < cellCount; i++) {
+                            const latIndex = gridDescription.latToGridPos(lat[i]);
+                            const lonIndex = gridDescription.lonToGridPos(lon[i]);
+
+                            const u = uGridValues[i];
+                            const v = vGridValues[i];
+
+                            const pos = {x: lonIndex, y: latIndex};
+                            uGrid.setAt(pos, u);
+                            vGrid.setAt(pos, v);
+
+                            const value = Math.pow(u, 2) + Math.pow(v, 2);
+                            if(value > max) {
+                                max = value;
+                            }
+                        }
+
+                        max = Math.sqrt(max);
+
+                        uValues = uGrid.raw;
+                        vValues = vGrid.raw;
+                        header = createIrregularHeader(metadata, time, gridDescription);
+                    } else {
+                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
+                        try {
+                            vValues = api.getVariableValues(windOverlay.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                            uValues = api.getVariableValues(windOverlay.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        } catch(er) {
+                            throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
+                        }
+
+                        const combinedValues = vValues.map((value, index) => {
+                            return (Math.pow(value, 2)) + Math.pow(uValues[index], 2);
+                        });
+                        const maxSquared = fastArrayMax(combinedValues);
+                        max = Math.sqrt(maxSquared);
+                        header = createHeader(metadata, time);
                     }
 
-                    const combinedValues = vValues.map((value, index) => {
-                        return (Math.pow(value, 2)) + Math.pow(uValues[index], 2);
-                    });
-                    const maxSquared = fastArrayMax(combinedValues);
-                    const max = Math.sqrt(maxSquared);
-
                     return {
-                        header: createHeader(metadata, time),
+                        header,
                         interpolate: bilinearInterpolateVector,
                         data: function(i) {
                             return [uValues[i], vValues[i]];
@@ -234,16 +335,40 @@ const FACTORIES = {
                 }),
                 builder: function(api) {
                     const tempOverlay = metadata.availableOverlays.find(overlay => overlay.type === "temp");
-                    const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                    const longitudeDimensionSize = metadata.dimensions.longitude.size;
+                    let header;
+                    let values;
+                    if(metadata.irregular != null) {
+                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
+                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const gridDescription = getIrregularGridDescription(lat, lon);
 
-                    const tempValues = api.getVariableValues(tempOverlay.name, [time, height,0 , 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        const tempGrid = gridDescription.createGrid();
+
+                        const cellCount = metadata.irregular.cellCount;
+                        const tempValues = api.getVariableValues(tempOverlay.name, [time, height, 0], [1, 1, cellCount]);
+
+                        for(let i = 0; i < cellCount; i++) {
+                            const latIndex = gridDescription.latToGridPos(lat[i]);
+                            const lonIndex = gridDescription.lonToGridPos(lon[i]);
+
+                            tempGrid.setAt({ x: lonIndex, y: latIndex }, tempValues[i]);
+                        }
+
+                        values = tempGrid.raw;
+                        header = createIrregularHeader(metadata, time, gridDescription);
+                    } else {
+                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
+
+                        values = api.getVariableValues(tempOverlay.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        header = createHeader(metadata, time);
+                    }
 
                     return {
-                        header: createHeader(metadata, time),
+                        header,
                         interpolate: bilinearInterpolateScalar,
                         data: function(i) {
-                            return tempValues[i];
+                            return values[i];
                         }
                     }
                 },
@@ -290,36 +415,70 @@ const FACTORIES = {
 
             return buildProduct({
                 field: "scalar",
-                type: "generic",
+                type: "temp",
                 description: localize({
                     name: { en: attr.overlay, ja: "気温" },
                     qualifier: { en: " ", ja: " " }
                 }),
                 builder: function(api) {
                     const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
-
-                    const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                    const longitudeDimensionSize = metadata.dimensions.longitude.size;
-
-                    const values = api.getVariableValues(overlayDef.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
                     const unit = api.getVariableStringAttribute(overlayDef.name, 'units');
-                    const minValue = fastArrayMin(values);
-                    const maxValue = fastArrayMax(values);
+                    let header;
+                    let values;
+                    let min = Number.POSITIVE_INFINITY, max = Number.NEGATIVE_INFINITY;
+                    if(metadata.irregular != null) {
+                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
+                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const gridDescription = getIrregularGridDescription(lat, lon);
+
+                        const grid = gridDescription.createGrid();
+
+                        const cellCount = metadata.irregular.cellCount;
+                        const dataValues = api.getVariableValues(overlayDef.name, [time, height, 0], [1, 1, cellCount]);
+
+                        for(let i = 0; i < cellCount; i++) {
+                            const latIndex = gridDescription.latToGridPos(lat[i]);
+                            const lonIndex = gridDescription.lonToGridPos(lon[i]);
+
+                            const value = dataValues[i];
+                            grid.setAt({ x: lonIndex, y: latIndex }, value);
+                            if(value > max) {
+                                max = value;
+                            }
+
+                            if(value < min) {
+                                min = value;
+                            }
+                        }
+
+                        values = grid.raw;
+                        header = createIrregularHeader(metadata, time, gridDescription);
+                    } else {
+                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
+                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
+
+                        values = api.getVariableValues(overlayDef.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        min = fastArrayMin(values);
+                        max = fastArrayMax(values);
+                        header = createHeader(metadata, time);
+                    }
 
                     return {
-                        header: createHeader(metadata, time),
+                        header,
                         units: [{
                             label: unit,
                             conversion: (x) => x,
-                            precision: findRequiredPrecision(minValue, maxValue)
+                            precision: findRequiredPrecision(min, max)
                         }],
-                        scale: {
-                            bounds: [minValue, maxValue],
-                            gradient: (v, a) => µ.extendedSinebowColor(µ.scaled(v, minValue, maxValue), a)
-                        },
                         interpolate: bilinearInterpolateScalar,
                         data: function(i) {
                             return values[i];
+                        },
+                        scale: {
+                            bounds: [0, max],
+                            gradient: function(v, a) {
+                                return µ.extendedSinebowColor(v / max, a);
+                            }
                         }
                     }
                 }

@@ -79,6 +79,22 @@ function findLonDimension(api, dimensions) {
     );
 }
 
+function findCLatDimension(api, variables) {
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "long_name", variables, "center latitude"),
+        () => filterMatchingVariableWithStandardName(api, variables, "latitude"),
+        () => variables.find(variable => variable === "clat")
+    );
+}
+
+function findCLonDimension(api, variables) {
+    return findFirstMatching(
+        () => filterMatchingAttribute(api, "long_name", variables, "center longitude"),
+        () => filterMatchingVariableWithStandardName(api, variables, "longitude"),
+        () => variables.find(variable => variable === "clon")
+    );
+}
+
 function findUWindVariable(api, variables) {
     return filterMatchingVariableWithStandardName(api, variables, "eastward_wind");
 }
@@ -149,7 +165,7 @@ function createGenericOverlay(api, variable, allDimensions) {
     }
 }
 
-function getAvailableOverlays(api, allVariables, dimensions) {
+function getAvailableOverlays(api, allVariables, dimensions, irregularConfig) {
     const variables = allVariables.filter(variable => !dimensions.includes(variable));
     const overlays = [];
     SPECIAL_OVERLAYS.forEach(overlay => {
@@ -159,8 +175,10 @@ function getAvailableOverlays(api, allVariables, dimensions) {
         }
     });
 
-    variables.filter(variable => variableHasCorrectDimensions(api, variable, dimensions)).forEach(variable => {
-        let overlay = createGenericOverlay(api, variable, dimensions);
+    const dims = (irregularConfig != null ? irregularConfig.dimensions : dimensions);
+
+    variables.filter(variable => variableHasCorrectDimensions(api, variable, dims)).forEach(variable => {
+        let overlay = createGenericOverlay(api, variable, dims);
         if(overlay != null) {
             overlays.push(overlay);
         }
@@ -209,6 +227,8 @@ export const MetadataAgent = {
         const centerName = api.getStringAttribute("institution");
         const title = api.getStringAttribute("title");
 
+        let irregular = null;
+
         const config = {
             levitation: findLevitationDimension(api, dimensions),
             latitude: findLatDimension(api, dimensions),
@@ -216,13 +236,23 @@ export const MetadataAgent = {
             time: findTimeDimension(api, dimensions)
         };
 
+        if(config.latitude == null && config.longitude == null && dimensions.includes('ncells')) {
+            config.longitude = findCLonDimension(api, variables);
+            config.latitude = findCLatDimension(api, variables);
+            irregular = {
+                cellDimension: 'ncells',
+                cellCount: api.getDimensionLength('ncells'),
+                dimensions: [config.time, config.levitation, 'ncells']
+            };
+        }
+
         for(let key in config) {
             if(config[key] == null) {
                 throw new Error("Could not determine variable for " + key);
             }
         }
 
-        const availableOverlays = getAvailableOverlays(api, variables, dimensions);
+        const availableOverlays = getAvailableOverlays(api, variables, dimensions, irregular);
 
         const timeValues = getTimeValues(api, config.time);
         const elevationLevels = getElevationLevels(api, config.levitation);
@@ -236,6 +266,7 @@ export const MetadataAgent = {
             centerName,
             availableOverlays,
             title,
+            irregular,
             dimensions: {
                 time: {
                     name: config.time,
@@ -253,13 +284,13 @@ export const MetadataAgent = {
                     name: config.latitude,
                     size: latitudeDimensionSize,
                     unit: api.getVariableStringAttribute(config.latitude, "units"),
-                    range: [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])]
+                    range: (irregular ? [] : [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])])
                 },
                 longitude: {
                     name: config.longitude,
                     size: longitudeDimensionSize,
                     unit: api.getVariableStringAttribute(config.longitude, "units"),
-                    range: [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])]
+                    range: (irregular ? [] : [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])])
                 }
             }
         }
