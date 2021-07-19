@@ -45,9 +45,10 @@ export function radiansToDegrees(radians) {
     return radians * (180 / Math.PI);
 }
 
-export function degreeToIndexWithStepCount(degree, steps) {
+export function degreeToIndexWithStepCount(degree, min, max, steps) {
     const floored = Math.floor(degree);
     const difference = degree - floored;
+    const base = floored - min;
 
-    return Math.round(floored * steps + (difference * steps));
+    return Math.round(base * steps + (difference * steps));
 }

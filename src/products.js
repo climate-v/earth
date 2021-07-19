@@ -158,6 +158,10 @@ function fastArrayMax(arr) {
 
 function findRequiredPrecision(min, max) {
     let diff = Math.abs(max - min);
+    if(diff === 0) {
+        return 0;
+    }
+
     let necessaryPrecision = 0;
     while(diff < 1) {
         diff *= 10;
@@ -168,11 +172,11 @@ function findRequiredPrecision(min, max) {
 }
 
 function convertLonRadianArray(latValues) {
-    return latValues.map(lat => (radiansToDegrees(lat) - (-180)) % 360);
+    return latValues.map(lat => (radiansToDegrees(lat)) % 360);
 }
 
 function convertLatRadianArray(lonValues) {
-    return lonValues.map(lon => (radiansToDegrees(lon) - (-90)) % 180);
+    return lonValues.map(lon => (radiansToDegrees(lon)) % 180);
 }
 
 function getIrregularGridDescription(latValues, lonValues) {
@@ -199,10 +203,31 @@ function getIrregularGridDescription(latValues, lonValues) {
             return new ArrayGrid(this.width, this.height);
         },
         latToGridPos(lat) {
-            return degreeToIndexWithStepCount(lat, this.stepping);
+            return degreeToIndexWithStepCount(lat, latMin, latMax, this.stepping);
         },
         lonToGridPos(lon) {
-            return degreeToIndexWithStepCount(lon, this.stepping);
+            return degreeToIndexWithStepCount(lon, lonMin, lonMax, this.stepping);
+        }
+    }
+}
+
+function averageGrid(grid) {
+    for(let x = 0; x < grid.width; x++) {
+        for(let y = 0; y < grid.height; y++) {
+            const value = grid.getAt({ x, y });
+            if(value === null || value === undefined) {
+                const valuesAround = [
+                    grid.getAt({ x: x + 1, y }),
+                    grid.getAt({ x, y: y + 1 }),
+                    grid.getAt({ x: x - 1, y }),
+                    grid.getAt({ x, y: y - 1 })
+                ].filter(va => va != null);
+
+                if(valuesAround.length > 1) {
+                    const average = valuesAround.reduce((a, b) => a + b) / valuesAround.length;
+                    grid.setAt({ x, y }, average);
+                }
+            }
         }
     }
 }
@@ -265,6 +290,9 @@ const FACTORIES = {
                         }
 
                         max = Math.sqrt(max);
+
+                        averageGrid(uGrid);
+                        averageGrid(vGrid);
 
                         uValues = uGrid.raw;
                         vValues = vGrid.raw;
@@ -353,6 +381,8 @@ const FACTORIES = {
 
                             tempGrid.setAt({ x: lonIndex, y: latIndex }, tempValues[i]);
                         }
+
+                        averageGrid(tempGrid);
 
                         values = tempGrid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
@@ -450,6 +480,8 @@ const FACTORIES = {
                                 min = value;
                             }
                         }
+
+                        averageGrid(grid);
 
                         values = grid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
