@@ -1,6 +1,7 @@
 import µ from "../micro";
 import report from "../report";
 import {last} from "underscore";
+import { newLoggedAgent } from "./agents";
 
 const WEATHER_PATH = "/data/weather";
 const FIVE_GIGABYTES = 1024 * 1024 * 1024 * 5;
@@ -77,3 +78,5 @@ export function downloadFile(api, filename) {
         });
     });
 }
+
+export default newLoggedAgent();

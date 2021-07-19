@@ -1,3 +1,5 @@
+import { newLoggedAgent } from "./agents";
+
 const TEMPERATURE_OVERLAY_VARIABLES = [
     "temp"
 ];
@@ -41,6 +43,13 @@ function filterMatchingAttribute(api, attribute, list, value) {
     return list.find(dimension => {
         const unit = api.getVariableStringAttribute(dimension, attribute);
         return filter(unit);
+    });
+}
+
+function filterHasAttribute(api, attribute, list) {
+    return list.find(variable => {
+        const value = api.getVariableStringAttribute(variable, attribute);
+        return value !== "";
     });
 }
 
@@ -184,6 +193,8 @@ function getAvailableOverlays(api, allVariables, dimensions, irregularConfig) {
         }
     });
 
+    console.log("Fond overlays", overlays);
+
     return overlays;
 }
 
@@ -219,80 +230,80 @@ function getDimensionDirection(values, inverted) {
     }
 }
 
-export const MetadataAgent = {
-    buildMetadata(api) {
-        const dimensions = api.getDimensions().split(",");
-        const variables = api.getVariables().split(",");
+export function buildMetadata(api) {
+    const dimensions = api.getDimensions().split(",");
+    const variables = api.getVariables().split(",");
 
-        const centerName = api.getStringAttribute("institution");
-        const title = api.getStringAttribute("title");
+    const centerName = api.getStringAttribute("institution");
+    const title = api.getStringAttribute("title");
 
-        let irregular = null;
+    let irregular = null;
 
-        const config = {
-            levitation: findLevitationDimension(api, dimensions),
-            latitude: findLatDimension(api, dimensions),
-            longitude: findLonDimension(api, dimensions),
-            time: findTimeDimension(api, dimensions)
+    const config = {
+        levitation: findLevitationDimension(api, dimensions),
+        latitude: findLatDimension(api, dimensions),
+        longitude: findLonDimension(api, dimensions),
+        time: findTimeDimension(api, dimensions)
+    };
+
+    if(config.latitude == null && config.longitude == null && dimensions.includes('ncells')) {
+        config.longitude = findCLonDimension(api, variables);
+        config.latitude = findCLatDimension(api, variables);
+        irregular = {
+            cellDimension: 'ncells',
+            cellCount: api.getDimensionLength('ncells'),
+            dimensions: [config.time, config.levitation, 'ncells']
         };
+    }
 
-        if(config.latitude == null && config.longitude == null && dimensions.includes('ncells')) {
-            config.longitude = findCLonDimension(api, variables);
-            config.latitude = findCLatDimension(api, variables);
-            irregular = {
-                cellDimension: 'ncells',
-                cellCount: api.getDimensionLength('ncells'),
-                dimensions: [config.time, config.levitation, 'ncells']
-            };
+    for(let key in config) {
+        if(config[key] == null) {
+            throw new Error("Could not determine variable for " + key);
         }
+    }
 
-        for(let key in config) {
-            if(config[key] == null) {
-                throw new Error("Could not determine variable for " + key);
-            }
-        }
+    const availableOverlays = getAvailableOverlays(api, variables, dimensions, irregular);
 
-        const availableOverlays = getAvailableOverlays(api, variables, dimensions, irregular);
+    const timeValues = getTimeValues(api, config.time);
+    const elevationLevels = getElevationLevels(api, config.levitation);
+    let inverted = api.getVariableStringAttribute(config.levitation, "positive") !== "down";
+    const elevationDirection = getDimensionDirection(elevationLevels, inverted);
 
-        const timeValues = getTimeValues(api, config.time);
-        const elevationLevels = getElevationLevels(api, config.levitation);
-        let inverted = api.getVariableStringAttribute(config.levitation, "positive") !== "down";
-        const elevationDirection = getDimensionDirection(elevationLevels, inverted);
+    const longitudeDimensionSize = api.getDimensionLength(config.longitude);
+    const latitudeDimensionSize = api.getDimensionLength(config.latitude);
 
-        const longitudeDimensionSize = api.getDimensionLength(config.longitude);
-        const latitudeDimensionSize = api.getDimensionLength(config.latitude);
-
-        return {
-            centerName,
-            availableOverlays,
-            title,
-            irregular,
-            dimensions: {
-                time: {
-                    name: config.time,
-                    values: timeValues,
-                    size: timeValues.length
-                },
-                levitation: {
-                    name: config.levitation,
-                    values: elevationLevels,
-                    unit: api.getVariableStringAttribute(config.levitation, "units"),
-                    size: elevationLevels.length,
-                    direction: elevationDirection
-                },
-                latitude: {
-                    name: config.latitude,
-                    size: latitudeDimensionSize,
-                    unit: api.getVariableStringAttribute(config.latitude, "units"),
-                    range: (irregular ? [] : [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])])
-                },
-                longitude: {
-                    name: config.longitude,
-                    size: longitudeDimensionSize,
-                    unit: api.getVariableStringAttribute(config.longitude, "units"),
-                    range: (irregular ? [] : [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])])
-                }
+    return {
+        centerName,
+        availableOverlays,
+        title,
+        irregular,
+        dimensions: {
+            time: {
+                name: config.time,
+                values: timeValues,
+                size: timeValues.length
+            },
+            levitation: {
+                name: config.levitation,
+                values: elevationLevels,
+                unit: api.getVariableStringAttribute(config.levitation, "units"),
+                size: elevationLevels.length,
+                direction: elevationDirection
+            },
+            latitude: {
+                name: config.latitude,
+                size: latitudeDimensionSize,
+                unit: api.getVariableStringAttribute(config.latitude, "units"),
+                range: (irregular ? [] : [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])])
+            },
+            longitude: {
+                name: config.longitude,
+                size: longitudeDimensionSize,
+                unit: api.getVariableStringAttribute(config.longitude, "units"),
+                range: (irregular ? [] : [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])])
             }
         }
     }
-};
+}
+
+export default newLoggedAgent();

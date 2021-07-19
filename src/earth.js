@@ -14,15 +14,15 @@ import * as d3 from 'd3';
 import * as topojson from "topojson-client";
 import * as _ from 'underscore';
 import { newLoggedAgent } from "./agents/agents";
-import { downloadFile, loadFile } from "./agents/file-agent";
-import { MetadataAgent } from "./agents/metadata-agent";
+import fileAgent, { downloadFile, loadFile } from "./agents/file-agent";
+import metadataAgent, { buildMetadata } from "./agents/metadata-agent";
+import gridAgent, { buildGrids } from "./agents/grid-agent";
 import { createApi } from "./api";
 import { buildConfiguration } from "./configuration";
 import globes from "./globes";
 import log from './log';
 import { clamp, distance, spread } from "./math";
 import µ from './micro';
-import products from "./products";
 import report from "./report";
 import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView } from "./ui";
 import { getSurfaceIndexForUnit } from "./units";
@@ -54,20 +54,17 @@ const configuration = buildConfiguration(globes);  // holds the page's current c
 const inputController = buildInputController();             // interprets drag/zoom operations
 const meshAgent = newLoggedAgent();      // map data for the earth
 const globeAgent = newLoggedAgent();     // the model of the globe
-const gridAgent = newLoggedAgent();      // the grid of weather data
 const rendererAgent = newLoggedAgent();  // the globe SVG renderer
 const fieldAgent = newLoggedAgent();     // the interpolated wind vector field
 const animatorAgent = newLoggedAgent();  // the wind animator
 const overlayAgent = newLoggedAgent();   // color overlay over the animation
-const fileAgent = newLoggedAgent();
-const metadataAgent = newLoggedAgent();
 const heightModel = new HeightModel();
-const heightView = new HeightView({model: heightModel});
+const heightView = new HeightView({ model: heightModel });
 const timeModel = new TimeModel();
-const timeView = new DateView({model: timeModel});
-const timeControlView = new TimeNavigationView({model: timeModel});
+const timeView = new DateView({ model: timeModel });
+const timeControlView = new TimeNavigationView({ model: timeModel });
 const overlayModel = new OverlayModel();
-const overlayView = new OverlayView({model:overlayModel});
+const overlayView = new OverlayView({ model: overlayModel });
 overlayView.render();
 heightView.render();
 timeView.render();
@@ -244,18 +241,6 @@ function buildGlobe(projectionName) {
         return Promise.reject("Unknown projection: " + projectionName);
     }
     return Promise.resolve().then(() => builder(view));
-}
-
-function buildGrids() {
-    report.status("Building grid...");
-    log.time("build grids");
-    const selectedProducts = products.productsFor(configuration.attributes, metadataAgent.value());
-    const builtProducts = selectedProducts.map(product => {
-        return product.build(api, fileAgent.value());
-    });
-    log.time("build grids");
-
-    return { primaryGrid: builtProducts[0], overlayGrid: builtProducts[1] || builtProducts[0] };
 }
 
 function buildRenderer(mesh, globe) {
@@ -444,47 +429,49 @@ function distort(projection, λ, φ, x, y, scale, wind) {
 function interpolateField(globe, grids) {
     if(!globe || !grids) return null;
 
-    var mask = createMask(globe);
-    var primaryGrid = grids.primaryGrid;
-    var overlayGrid = grids.overlayGrid;
+    const mask = createMask(globe);
+    const primaryGrid = grids.primaryGrid;
+    const overlayGrid = grids.overlayGrid;
+
+    const hasDistinctOverlay = grids.hasOverlay();
+    const hasVectorField = grids.hasVectorField();
+    const scale = grids.scale;
 
     log.time("interpolating field");
-    var cancel = this.cancel;
+    const cancel = this.cancel;
 
-    var projection = globe.projection;
-    var bounds = globe.bounds(view);
+    const projection = globe.projection;
+    const bounds = globe.bounds(view);
     // How fast particles move on the screen (arbitrary value chosen for aesthetics).
-    var velocityScale = bounds.height * primaryGrid.particles.velocityScale;
+    const velocityScale = bounds.height * (hasVectorField ? primaryGrid.particles.velocityScale : 1);
 
-    var columns = [];
-    var point = [];
-    var x = bounds.x;
-    var interpolate = primaryGrid.interpolate;
-    var overlayInterpolate = overlayGrid.interpolate;
-    var hasDistinctOverlay = primaryGrid !== overlayGrid;
-    var scale = overlayGrid.scale;
+    const columns = [];
+    let x = bounds.x;
 
     function interpolateColumn(x) {
-        var column = [];
-        for(var y = bounds.y; y <= bounds.yMax; y += 2) {
+        const column = [];
+        for(let y = bounds.y; y <= bounds.yMax; y += 2) {
             if(mask.isVisible(x, y)) {
-                point[0] = x;
-                point[1] = y;
-                var coord = projection.invert(point);
-                var color = TRANSPARENT_BLACK;
-                var wind = null;
+                const point = [x, y];
+                const coord = projection.invert(point);
+                let color = TRANSPARENT_BLACK;
+                let wind = null;
                 if(coord) {
-                    var λ = coord[0], φ = coord[1];
-                    if(isFinite(λ)) {
-                        wind = interpolate(λ, φ);
-                        var scalar = null;
-                        if(wind) {
-                            wind = distort(projection, λ, φ, x, y, velocityScale, wind);
+                    const λ = coord[0], φ = coord[1];
+                    if(isFinite(λ) && primaryGrid != null) {
+                        const primaryValues = primaryGrid.interpolate(λ, φ);
+                        let scalar = null;
+                        if(Array.isArray(primaryValues)) {
+                            wind = distort(projection, λ, φ, x, y, velocityScale, primaryValues);
                             scalar = wind[2];
+                        } else {
+                            scalar = primaryValues;
                         }
+
                         if(hasDistinctOverlay) {
-                            scalar = overlayInterpolate(λ, φ);
+                            scalar = overlayGrid.interpolate(λ, φ);
                         }
+
                         if(µ.isValue(scalar)) {
                             color = scale.gradient(scalar, OVERLAY_ALPHA);
                         }
@@ -526,7 +513,7 @@ function interpolateField(globe, grids) {
 }
 
 function animate(globe, field, grids) {
-    if(!globe || !field || !grids) return;
+    if(!globe || !field || !grids || !grids.hasVectorField()) return;
 
     var cancel = this.cancel;
     var bounds = globe.bounds(view);
@@ -641,7 +628,9 @@ function drawGridPoints(ctx, grid, globe) {
 function drawOverlay(field, overlayType) {
     if(!field) return;
 
-    var ctx = d3.select("#overlay").node().getContext("2d"), grid = (gridAgent.value() || {}).overlayGrid;
+    const ctx = d3.select("#overlay").node().getContext("2d");
+    const grids = gridAgent.value();
+    const grid = grids.overlayGrid || grids.primaryGrid;
 
     µ.clearCanvas(d3.select("#overlay").node());
     µ.clearCanvas(d3.select("#scale").node());
@@ -649,7 +638,7 @@ function drawOverlay(field, overlayType) {
         if(overlayType !== "off") {
             ctx.putImageData(field.overlay, 0, 0);
         }
-        drawGridPoints(ctx, grid, globeAgent.value());
+        drawGridPoints(ctx, grids.overlayGrid, globeAgent.value());
     }
 
     if(grid) {
@@ -678,17 +667,18 @@ function drawOverlay(field, overlayType) {
  * Display the grids' types in the menu.
  */
 function showGridDetails(grids) {
-    let description = "", center = "";
-    if(grids) {
+    const metadata = metadataAgent.value();
+    const mainTitle = metadata.title;
+    const center = metadata.centerName;
+    let description = "";
+    if(grids && grids.primaryGrid) {
         var langCode = d3.select("body").attr("data-lang") || "en";
-        const mainTitle = metadataAgent.value().title;
-        const pd = grids.primaryGrid.description(langCode), od = grids.overlayGrid.description(langCode);
-        description = mainTitle + od.qualifier;
-        if(grids.primaryGrid !== grids.overlayGrid) {
-            // Combine both grid descriptions together with a " + " if their qualifiers are the same.
-            description = (pd.qualifier === od.qualifier ? mainTitle : mainTitle + pd.qualifier) + " + " + description;
+        const pd = grids.primaryGrid.description(langCode)
+        description = mainTitle + pd.qualifier;
+        if(grids.hasOverlay()) {
+            const od = grids.overlayGrid.description(langCode);
+            description += " + " + od.qualifier;
         }
-        center = grids.overlayGrid.source;
     }
     d3.select("#data-layer").text(description);
     d3.select("#data-center").text(center);
@@ -762,12 +752,20 @@ function showLocationDetails(point, coord) {
         d3.select("#location-close").classed("invisible", false);
     }
 
-    if(field.isDefined(point[0], point[1]) && grids) {
-        const wind = grids.primaryGrid.interpolate(λ, φ);
-        if(µ.isValue(wind)) {
-            showWindAtLocation(wind, grids.primaryGrid);
+    if(grids && grids.primaryGrid) {
+        if(grids.hasVectorField()) {
+            if(field.isDefined(point[0], point[1])) {
+                const wind = grids.primaryGrid.interpolate(λ, φ);
+                if(µ.isValue(wind)) {
+                    showWindAtLocation(wind, grids.primaryGrid);
+                }
+            }
+        } else {
+            const value = grids.primaryGrid.interpolate(λ, φ);
+            showOverlayValueAtLocation(value, grids.primaryGrid);
         }
-        if(grids.overlayGrid !== grids.primaryGrid) {
+
+        if(grids.hasOverlay()) {
             const value = grids.overlayGrid.interpolate(λ, φ);
             if(µ.isValue(value)) {
                 showOverlayValueAtLocation(value, grids.overlayGrid);
@@ -1044,23 +1042,24 @@ function init() {
     });
 
     overlayModel.listenTo(metadataAgent, "update", () => {
-        overlayModel.set({overlays: metadataAgent.value().availableOverlays});
+        overlayModel.set({ overlays: metadataAgent.value().availableOverlays });
     });
 
     overlayModel.listenTo(configuration, "change:overlayType", () => {
-        overlayModel.set({currentOverlay: configuration.get("overlayType")});
+        overlayModel.set({ currentOverlay: configuration.get("overlayType") });
     });
 
     configuration.listenTo(overlayModel, "change:currentOverlay", () => {
-        configuration.save({overlayType: overlayModel.get("currentOverlay")});
+        configuration.save({ overlayType: overlayModel.get("currentOverlay") });
     });
 
     metadataAgent.listenTo(fileAgent, "update", () => {
-        metadataAgent.submit(() => MetadataAgent.buildMetadata(api));
+        stopCurrentAnimation(true);
+        metadataAgent.submit(buildMetadata, api);
     });
 
     gridAgent.listenTo(metadataAgent, "update", () => {
-        gridAgent.submit(buildGrids);
+        gridAgent.submit(buildGrids, configuration, api);
     });
 
     gridAgent.listenTo(configuration, "change", function() {
@@ -1089,7 +1088,7 @@ function init() {
         }
 
         if(rebuildRequired) {
-            gridAgent.submit(buildGrids);
+            gridAgent.submit(buildGrids, configuration, api);
         }
     });
     gridAgent.on("submit", function() {

@@ -7,6 +7,7 @@
  * https://github.com/cambecc/earth
  */
 import _ from 'underscore'
+import { WIND_OVERLAY } from "./agents/metadata-agent";
 import { ArrayGrid } from "./array-grid";
 import { floatToDate } from "./date";
 import { degreeToIndexWithStepCount, floorMod, radiansToDegrees } from "./math";
@@ -234,7 +235,9 @@ function averageGrid(grid) {
 
 const FACTORIES = {
     "wind": {
-        matches: _.matches({param: "wind"}),
+        matches({ availableOverlays, ...attrs }) {
+            return availableOverlays.some(overlay => overlay.id === WIND_OVERLAY) && attrs.param === "wind";
+        },
         create: function(attr, metadata) {
             const height = attr.heightIndex;
             const time = attr.timeIndex;
@@ -308,7 +311,7 @@ const FACTORIES = {
                         }
 
                         const combinedValues = vValues.map((value, index) => {
-                            return (Math.pow(value, 2)) + Math.pow(uValues[index], 2);
+                            return Math.pow(value, 2) + Math.pow(uValues[index], 2);
                         });
                         const maxSquared = fastArrayMax(combinedValues);
                         max = Math.sqrt(maxSquared);
@@ -341,7 +344,7 @@ const FACTORIES = {
     },
 
     "temp": {
-        matches: _.matches({param: "wind", overlayType: "temp"}),
+        matches: _.matches({ overlayType: "temp" }),
         create: function(attr, metadata) {
             const height = attr.heightIndex;
             const time = attr.timeIndex;
@@ -874,19 +877,6 @@ const FACTORIES = {
 //     return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
 // }
 
-function dataSource(header) {
-    // noinspection FallthroughInSwitchStatementJS
-    switch (header.center || header.centerName) {
-        case -3:
-            return "OSCAR / Earth & Space Research";
-        case 7:
-        case "US National Weather Service, National Centres for Environmental Prediction (NCEP)":
-            return "GFS / NCEP / US National Weather Service";
-        default:
-            return header.centerName;
-    }
-}
-
 function bilinearInterpolateScalar(x, y, g00, g10, g01, g11) {
     var rx = (1 - x);
     var ry = (1 - y);
@@ -1002,7 +992,6 @@ export function buildGrid(builder) {
 
 
     let result = {
-        source: dataSource(header),
         date,
         interpolate,
         forEachPoint: function(cb) {
@@ -1027,7 +1016,7 @@ export function buildGrid(builder) {
 function productsFor(attributes, metadata) {
     const attr = _.clone(attributes);
     return _.values(FACTORIES)
-        .filter(factory => factory.matches(attr))
+        .filter(factory => factory.matches({ availableOverlays: metadata.availableOverlays, ...attr}))
         .map(factory => factory.create(attr, metadata))
         .filter(µ.isValue);
 }
