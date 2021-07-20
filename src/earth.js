@@ -584,7 +584,9 @@ function animate(globe, field, grids) {
                 g.strokeStyle = colorStyles[i];
                 bucket.forEach(function(particle) {
                     g.moveTo(particle.x, particle.y);
-                    g.lineTo(particle.xt, particle.yt);
+                    if (Math.abs(particle.x - particle.xt) <= 20 && Math.abs(particle.y - particle.yt) <= 20) {
+                        g.lineTo(particle.xt, particle.yt);
+                    }
                     particle.x = particle.xt;
                     particle.y = particle.yt;
                 });
