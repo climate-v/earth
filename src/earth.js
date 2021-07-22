@@ -764,7 +764,9 @@ function showLocationDetails(point, coord) {
             }
         } else {
             const value = grids.primaryGrid.interpolate(λ, φ);
-            showOverlayValueAtLocation(value, grids.primaryGrid);
+            if(µ.isValue(value)) {
+                showOverlayValueAtLocation(value, grids.primaryGrid);
+            }
         }
 
         if(grids.hasOverlay()) {
