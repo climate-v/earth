@@ -213,21 +213,32 @@ function getIrregularGridDescription(latValues, lonValues) {
 }
 
 function averageGrid(grid) {
+    const averageAt = (x, y) => {
+        const valuesAround = [
+            grid.getAt({ x: x + 1, y }),
+            grid.getAt({ x, y: y + 1 }),
+            grid.getAt({ x: x - 1, y }),
+            grid.getAt({ x, y: y - 1 })
+        ].filter(va => va != null);
+
+        if(valuesAround.length > 1) {
+            const average = valuesAround.reduce((a, b) => a + b) / valuesAround.length;
+            grid.setAt({ x, y }, average);
+        }
+    }
+
     for(let x = 0; x < grid.width; x++) {
-        for(let y = 0; y < grid.height; y++) {
+        for(let y = Math.floor(grid.height / 2); y < grid.height; y++) {
             const value = grid.getAt({ x, y });
             if(value === null || value === undefined) {
-                const valuesAround = [
-                    grid.getAt({ x: x + 1, y }),
-                    grid.getAt({ x, y: y + 1 }),
-                    grid.getAt({ x: x - 1, y }),
-                    grid.getAt({ x, y: y - 1 })
-                ].filter(va => va != null);
+                averageAt(x, y);
+            }
+        }
 
-                if(valuesAround.length > 1) {
-                    const average = valuesAround.reduce((a, b) => a + b) / valuesAround.length;
-                    grid.setAt({ x, y }, average);
-                }
+        for(let y = Math.floor(grid.height / 2) - 1; y >= 0; y--) {
+            const value = grid.getAt({ x, y });
+            if(value === null || value === undefined) {
+                averageAt(x, y);
             }
         }
     }
