@@ -205,7 +205,12 @@ function formatCoordinates(λ, φ) {
  * Returns a human readable string for the provided scalar in the given units.
  */
 function formatScalar(value, units) {
-    return units.conversion(value).toFixed(units.precision);
+    let convertedValue = units.conversion(value);
+    if(Math.abs(convertedValue) < 0.001 ) {
+        return convertedValue.toExponential(units.precision);
+    } else {
+        return convertedValue.toFixed(units.precision);
+    }
 }
 
 /**

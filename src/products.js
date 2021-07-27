@@ -158,18 +158,15 @@ function fastArrayMax(arr) {
 }
 
 function findRequiredPrecision(min, max) {
-    let diff = Math.abs(max - min);
-    if(diff === 0) {
+    if(max < 2) {
+        return 3;
+    } else if (max < 10) {
+        return 2;
+    } else if (max < 100) {
+        return 1;
+    } else {
         return 0;
     }
-
-    let necessaryPrecision = 0;
-    while(diff < 1) {
-        diff *= 10;
-        necessaryPrecision++;
-    }
-
-    return necessaryPrecision + 1;
 }
 
 function convertLonRadianArray(latValues) {
