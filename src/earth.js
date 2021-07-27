@@ -21,10 +21,10 @@ import { createApi } from "./api";
 import { buildConfiguration } from "./configuration";
 import globes from "./globes";
 import log from './log';
-import { clamp, distance, spread } from "./math";
+import { distance } from "./math";
 import µ from './micro';
 import report from "./report";
-import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView } from "./ui";
+import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView, ScaleSwitch } from "./ui";
 import { getSurfaceIndexForUnit } from "./units";
 
 const MAX_TASK_TIME = 100;                  // amount of time before a task yields control (millis)
@@ -65,10 +65,13 @@ const timeView = new DateView({ model: timeModel });
 const timeControlView = new TimeNavigationView({ model: timeModel });
 const overlayModel = new OverlayModel();
 const overlayView = new OverlayView({ model: overlayModel });
+const scaleSwitch = new ScaleSwitch({ model: configuration });
+
 overlayView.render();
 heightView.render();
 timeView.render();
 timeControlView.render();
+scaleSwitch.render();
 
 /**
  * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
@@ -426,8 +429,8 @@ function distort(projection, λ, φ, x, y, scale, wind) {
     return wind;
 }
 
-function interpolateField(globe, grids) {
-    if(!globe || !grids) return null;
+function interpolateField(globe, grids, displayScale) {
+    if(!globe || !grids || grids.primaryGrid == null) return null;
 
     const mask = createMask(globe);
     const primaryGrid = grids.primaryGrid;
@@ -435,7 +438,7 @@ function interpolateField(globe, grids) {
 
     const hasDistinctOverlay = grids.hasOverlay();
     const hasVectorField = grids.hasVectorField();
-    const scale = grids.scale;
+    const selectedScale = grids.scale[displayScale];
 
     log.time("interpolating field");
     const cancel = this.cancel;
@@ -473,7 +476,7 @@ function interpolateField(globe, grids) {
                         }
 
                         if(µ.isValue(scalar)) {
-                            color = scale.gradient(scalar, OVERLAY_ALPHA);
+                            color = selectedScale.gradient(selectedScale.scaler(scalar), OVERLAY_ALPHA);
                         }
                     }
                 }
@@ -627,7 +630,7 @@ function drawGridPoints(ctx, grid, globe) {
     });
 }
 
-function drawOverlay(field, overlayType) {
+function drawOverlay(field, overlayType, displayedScale) {
     if(!field) return;
 
     const ctx = d3.select("#overlay").node().getContext("2d");
@@ -645,10 +648,12 @@ function drawOverlay(field, overlayType) {
 
     if(grid) {
         // Draw color bar for reference.
-        var colorBar = d3.select("#scale"), scale = grid.scale, bounds = scale.bounds;
-        var c = colorBar.node(), g = c.getContext("2d"), n = c.width - 1;
+        var colorBar = d3.select("#scale"), scale = grid.scale;
+        var c = colorBar.node(), g = c.getContext("2d"), n = c.clientWidth;
+        const selectedScale = scale[displayedScale];
+        const colorBarRange = d3.scaleLinear().domain([0, n]);
         for(let i = 0; i <= n; i++) {
-            const rgb = scale.gradient(spread(i / n, bounds[0], bounds[1]), 1);
+            const rgb = selectedScale.gradient(colorBarRange(i), 1);
             g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
             g.fillRect(i, 0, 1, c.height);
         }
@@ -656,8 +661,8 @@ function drawOverlay(field, overlayType) {
         // Show tooltip on hover.
         colorBar.on("mousemove", function(ev) {
             var x = d3.pointer(ev, this)[0];
-            var pct = clamp((Math.round(x) - 2) / (n - 2), 0, 1);
-            var value = spread(pct, bounds[0], bounds[1]);
+            var pct = colorBarRange(x);
+            var value = selectedScale.scaler.invert(pct);
             var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
             var units = createUnitToggle(elementId, grid).value();
             colorBar.attr("title", µ.formatScalar(value, units) + " " + units.label);
@@ -1075,7 +1080,7 @@ function init() {
         let rebuildRequired = false;
 
         // Build a new grid if any layer-related attributes have changed.
-        if(_.intersection(changed, ["timeIndex", "param", "heightIndex", "levitation", "u", "v"]).length > 0) {
+        if(_.intersection(changed, ["timeIndex", "param", "heightIndex", "levitation", "u", "v", "scale"]).length > 0) {
             rebuildRequired = true;
         }
         // Build a new grid if the new overlay type is different from the current one.
@@ -1110,7 +1115,7 @@ function init() {
     rendererAgent.listenTo(globeAgent, "update", startRendering);
 
     function startInterpolation() {
-        fieldAgent.submit(interpolateField, globeAgent.value(), gridAgent.value());
+        fieldAgent.submit(interpolateField, globeAgent.value(), gridAgent.value(), configuration.get("scale"));
     }
 
     function cancelInterpolation() {
@@ -1130,16 +1135,16 @@ function init() {
     animatorAgent.listenTo(fieldAgent, "submit", stopCurrentAnimation.bind(null, false));
 
     overlayAgent.listenTo(fieldAgent, "update", function() {
-        overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"));
+        overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"));
     });
     overlayAgent.listenTo(rendererAgent, "start", function() {
-        overlayAgent.submit(drawOverlay, fieldAgent.value(), null);
+        overlayAgent.submit(drawOverlay, fieldAgent.value(), null, "linear");
     });
     overlayAgent.listenTo(configuration, "change", function() {
         var changed = _.keys(configuration.changedAttributes())
         // if only overlay relevant flags have changed...
         if(_.intersection(changed, ["overlayType", "showGridPoints"]).length > 0) {
-            overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"));
+            overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"));
         }
     });
 

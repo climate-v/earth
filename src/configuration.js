@@ -33,6 +33,7 @@ function parse(hash, projectionNames) {
             orientation: "",
             topology: TOPOLOGY,
             overlayType: "default",
+            scale: 'linear',
             showGridPoints: false
         };
         micro.coalesce(tokens[5], "").split(OPTION_SEPARATOR).forEach(function(segment) {
@@ -49,6 +50,9 @@ function parse(hash, projectionNames) {
             switch(optionName) {
                 case 'overlay':
                     result.overlayType = optionValue;
+                    break;
+                case 'scale':
+                    result.scale = optionValue;
                     break;
                 case 'grid':
                     if(optionValue === "on") {
@@ -90,7 +94,8 @@ const Configuration = Backbone.Model.extend({
         const ol = !micro.isValue(attr.overlayType) || attr.overlayType === "default" ? "" : "overlay=" + attr.overlayType;
         const grid = attr.showGridPoints ? "grid=on" : "";
         const filename = (attr.file && attr.file !== "" ? `file=${attr.file}` : "");
-        const options = [ol, proj, grid, filename].filter(micro.isTruthy).join(OPTION_SEPARATOR);
+        const scale = (attr.scale != null ? `scale=${attr.scale}` : "");
+        const options = [ol, proj, grid, filename, scale].filter(micro.isTruthy).join(OPTION_SEPARATOR);
         return [time, attr.param, height, options].filter(micro.isTruthy).join("/");
     },
 

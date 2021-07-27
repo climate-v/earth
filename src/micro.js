@@ -8,6 +8,7 @@
  */
 
 import { proportion } from "./math";
+import * as d3 from 'd3';
 
 var τ = 2 * Math.PI;
 var H = 0.0000360;  // 0.0000360°φ ~= 4m
@@ -140,6 +141,24 @@ function extendedSinebowColor(i, a) {
     return i <= BOUNDARY ?
         sinebowColor(i / BOUNDARY, a) :
         fadeToWhite((i - BOUNDARY) / (1 - BOUNDARY), a);
+}
+
+function linearScale(min, max) {
+    return {
+        scaler: d3.scaleLinear().domain([min, max]),
+        gradient(i, a) {
+            return extendedSinebowColor(i, a);
+        }
+    }
+}
+
+function logScale(min, max) {
+    return {
+        scaler: d3.scaleLog().domain([min, max]),
+        gradient(i, a) {
+            return extendedSinebowColor(i, a);
+        }
+    }
 }
 
 function asColorStyle(r, g, b, a) {
@@ -312,4 +331,6 @@ export default {
     loadJson,
     fetchResource,
     distortion: distortion,
+    linearScale,
+    logScale
 };
