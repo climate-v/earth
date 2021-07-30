@@ -209,6 +209,21 @@ function getIrregularGridDescription(latValues, lonValues) {
     }
 }
 
+/**
+ * This fills the empty spots in a grid (where the value is null or undefined)
+ * with average values. It will look through each cell of the grid and if the
+ * cell is not filled, it will take the average of the surrounding cells to
+ * fill in it's value. This will only happen if at least two of the four cells
+ * adjacent to the cell are filled.
+ *
+ * This process works from center of the y axis of the grid (usually the equator)
+ * outwards to the edges. Usually, a lot of the missing spots from the conversion
+ * happen to be on the outside. By coming from the center, we have a higher chance
+ * of filling even larger holes by creating an avalanche that hopefully progresses
+ * far towards the edges.
+ *
+ * @param grid the grid to average
+ */
 function averageGrid(grid) {
     const averageAt = (x, y) => {
         const valuesAround = [

@@ -45,6 +45,20 @@ export function radiansToDegrees(radians) {
     return radians * (180 / Math.PI);
 }
 
+/**
+ * Converts a degree value into an index on a grid, given the expected min/max degree values
+ * and the amount of steps per degree we're using.
+ *
+ * Given that we have a value range of min 0degree to max 90degree and a grid that is 180 in
+ * height (thus using 2 steps per degree), this function would convert a value of 10.5 degree
+ * to 21.
+ *
+ * @param degree the degree value we want to convert
+ * @param min the min degree value we're supporting
+ * @param max the max degree value we're supporting
+ * @param steps the amount of steps per degree
+ * @returns {number} the index in the grid
+ */
 export function degreeToIndexWithStepCount(degree, min, max, steps) {
     const floored = Math.floor(degree);
     const difference = degree - floored;

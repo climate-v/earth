@@ -1,3 +1,8 @@
+/**
+ * An `ArrayGrid` is a grid that is based on a single dimensional
+ * array. This is mainly used to handle the conversion between
+ * the access location and the index location in the array.
+ */
 export class ArrayGrid {
     constructor(width, height) {
         this.width = width;

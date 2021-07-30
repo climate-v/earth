@@ -18,10 +18,26 @@ const OVERLAY_FACTORIES = {
 };
 
 export const HEIGHT_DIRECTION = {
+    /**
+     * Low to high: first index is the lowest index and last index is highest.
+     */
     LOW_TO_HIGH: "lth",
+    /**
+     * High to low: first index is the highest index and last index is the lowest.
+     */
     HIGH_TO_LOW: "htl"
 };
 
+/**
+ * By going through the given getter functions, it finds the first
+ * value that is being returned by one of them, or null if none
+ * returned a value. Once a value has been found, the remaining
+ * getters will not be called.
+ *
+ * @param getters list of getters to check which should be of type
+ *              `() => Any`.
+ * @returns {null|*} the first found value
+ */
 function findFirstMatching(...getters) {
     for(let getter of getters) {
         const result = getter();
@@ -32,6 +48,17 @@ function findFirstMatching(...getters) {
     return null;
 }
 
+/**
+ * Filters the given `list` of variable names for ones where the
+ * `attribute` of the variable matches the expected `value` and
+ * gets the first one.
+ *
+ * @param api reference to the instantiated visualize api to do wasm calls
+ * @param attribute the attribute of the variables to extract
+ * @param list the list of variables to search through
+ * @param value the value that we're looking for
+ * @returns {*}
+ */
 function filterMatchingAttribute(api, attribute, list, value) {
     let filter;
     if(typeof value === "string") {
@@ -174,6 +201,22 @@ function createGenericOverlay(api, variable, allDimensions) {
     }
 }
 
+/**
+ * Looks through the given variables & dimensions to find what kinds of overlays
+ * can be provided for the file these variables came from.
+ *
+ * This is done by first looking through our special overlays, wind and temperature,
+ * if they can be created from the variables (e.g. by checking for u/v variables).
+ * From the remaining variables it will try to create generic overlays, making sure
+ * that we only consider variables that have matching dimensions.
+ *
+ * @param api reference to the instantiated visualize api to do wasm calls
+ * @param allVariables list of all the variables from the file
+ * @param dimensions the list of dimensions from the file
+ * @param irregularConfig optional configuration for irregular grids if the loaded file
+ *          uses an irregular grid. Null otherwise.
+ * @returns {*[]}
+ */
 function getAvailableOverlays(api, allVariables, dimensions, irregularConfig) {
     const variables = allVariables.filter(variable => !dimensions.includes(variable));
     const overlays = [];
@@ -206,6 +249,19 @@ function getElevationLevels(api, levitationVariable) {
     return api.getAllVariableValues(levitationVariable);
 }
 
+/**
+ * Try to figure out which direction the height should be displayed.
+ * This is because we want to keep direction the same in the UI
+ * even with different heights. However, we also need to take into
+ * consideration that the order of values inside the file may not be
+ * low to high which means we'd need to invert it again. This function
+ * will try to find a definitive result given all the inputs.
+ *
+ * @param values the values for the variable
+ * @param inverted the `inverted` attribute from the variable
+ * @returns {string} Either `HEIGHT_DIRECTION.HIGH_TO_LOW` or
+ *              `HEIGHT_DIRECTION.LOW_TO_HIGH`
+ */
 function getDimensionDirection(values, inverted) {
     if(values.length <= 1) {
         return HEIGHT_DIRECTION.LOW_TO_HIGH;
@@ -306,4 +362,11 @@ export function buildMetadata(api) {
     }
 }
 
+/**
+ * The metadata agent takes care of finding the metadata information about the file,
+ * such as which variables it has and what dimensions or overlays the correspond to.
+ * It also find the variables necessary for height and time as well as figuring out
+ * if the file has an irregular grid or not. Thus any information about the file,
+ * that is not the data itself will be covered by this agent.
+ */
 export default newLoggedAgent();
