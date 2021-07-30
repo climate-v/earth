@@ -18,13 +18,14 @@ import fileAgent, { downloadFile, loadFile } from "./agents/file-agent";
 import metadataAgent, { buildMetadata } from "./agents/metadata-agent";
 import gridAgent, { buildGrids } from "./agents/grid-agent";
 import { createApi } from "./api";
+import { colorAccordingToScale, windIntensityColorScale } from "./colorscales";
 import { buildConfiguration } from "./configuration";
 import globes from "./globes";
 import log from './log';
 import { distance } from "./math";
 import µ from './micro';
 import report from "./report";
-import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView, ScaleSwitch } from "./ui";
+import { DateView, HeightModel, HeightView, OverlayModel, OverlayView, TimeModel, TimeNavigationView, ScaleSwitch, ColorscaleSelect } from "./ui";
 import { getSurfaceIndexForUnit } from "./units";
 
 const MAX_TASK_TIME = 100;                  // amount of time before a task yields control (millis)
@@ -66,12 +67,14 @@ const timeControlView = new TimeNavigationView({ model: timeModel });
 const overlayModel = new OverlayModel();
 const overlayView = new OverlayView({ model: overlayModel });
 const scaleSwitch = new ScaleSwitch({ model: configuration });
+const colorscaleSelect = new ColorscaleSelect({ model: configuration });
 
 overlayView.render();
 heightView.render();
 timeView.render();
 timeControlView.render();
 scaleSwitch.render();
+colorscaleSelect.render();
 
 /**
  * The input controller is an object that translates move operations (drag and/or zoom) into mutations of the
@@ -429,7 +432,7 @@ function distort(projection, λ, φ, x, y, scale, wind) {
     return wind;
 }
 
-function interpolateField(globe, grids, displayScale) {
+function interpolateField(globe, grids, displayScale, colorScale) {
     if(!globe || !grids || grids.primaryGrid == null) return null;
 
     const mask = createMask(globe);
@@ -476,7 +479,7 @@ function interpolateField(globe, grids, displayScale) {
                         }
 
                         if(µ.isValue(scalar)) {
-                            color = selectedScale.gradient(selectedScale.scaler(scalar), OVERLAY_ALPHA);
+                            color = colorAccordingToScale(colorScale, selectedScale(scalar), OVERLAY_ALPHA);
                         }
                     }
                 }
@@ -521,7 +524,7 @@ function animate(globe, field, grids) {
     var cancel = this.cancel;
     var bounds = globe.bounds(view);
     // maxIntensity is the velocity at which particle color intensity is maximum
-    var colorStyles = µ.windIntensityColorScale(INTENSITY_SCALE_STEP, grids.primaryGrid.particles.maxIntensity);
+    var colorStyles = windIntensityColorScale(INTENSITY_SCALE_STEP, grids.primaryGrid.particles.maxIntensity);
     var buckets = colorStyles.map(function() {
         return [];
     });
@@ -630,7 +633,7 @@ function drawGridPoints(ctx, grid, globe) {
     });
 }
 
-function drawOverlay(field, overlayType, displayedScale) {
+function drawOverlay(field, overlayType, displayedScale, colorScale) {
     if(!field) return;
 
     const ctx = d3.select("#overlay").node().getContext("2d");
@@ -653,7 +656,7 @@ function drawOverlay(field, overlayType, displayedScale) {
         const selectedScale = scale[displayedScale];
         const colorBarRange = d3.scaleLinear().domain([0, n]);
         for(let i = 0; i <= n; i++) {
-            const rgb = selectedScale.gradient(colorBarRange(i), 1);
+            const rgb = colorAccordingToScale(colorScale, colorBarRange(i), 1);
             g.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
             g.fillRect(i, 0, 1, c.height);
         }
@@ -662,7 +665,7 @@ function drawOverlay(field, overlayType, displayedScale) {
         colorBar.on("mousemove", function(ev) {
             var x = d3.pointer(ev, this)[0];
             var pct = colorBarRange(x);
-            var value = selectedScale.scaler.invert(pct);
+            var value = selectedScale.invert(pct);
             var elementId = grid.type === "wind" ? "#location-wind-units" : "#location-value-units";
             var units = createUnitToggle(elementId, grid).value();
             colorBar.attr("title", µ.formatScalar(value, units) + " " + units.label);
@@ -1080,7 +1083,7 @@ function init() {
         let rebuildRequired = false;
 
         // Build a new grid if any layer-related attributes have changed.
-        if(_.intersection(changed, ["timeIndex", "param", "heightIndex", "levitation", "u", "v", "scale"]).length > 0) {
+        if(_.intersection(changed, ["timeIndex", "param", "heightIndex", "levitation", "u", "v", "scale", "colorscale"]).length > 0) {
             rebuildRequired = true;
         }
         // Build a new grid if the new overlay type is different from the current one.
@@ -1115,7 +1118,7 @@ function init() {
     rendererAgent.listenTo(globeAgent, "update", startRendering);
 
     function startInterpolation() {
-        fieldAgent.submit(interpolateField, globeAgent.value(), gridAgent.value(), configuration.get("scale"));
+        fieldAgent.submit(interpolateField, globeAgent.value(), gridAgent.value(), configuration.get("scale"), configuration.get("colorscale"));
     }
 
     function cancelInterpolation() {
@@ -1135,16 +1138,16 @@ function init() {
     animatorAgent.listenTo(fieldAgent, "submit", stopCurrentAnimation.bind(null, false));
 
     overlayAgent.listenTo(fieldAgent, "update", function() {
-        overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"));
+        overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"), configuration.get("colorscale"));
     });
     overlayAgent.listenTo(rendererAgent, "start", function() {
-        overlayAgent.submit(drawOverlay, fieldAgent.value(), null, "linear");
+        overlayAgent.submit(drawOverlay, fieldAgent.value(), null, configuration.get("scale"), configuration.get("colorscale"));
     });
     overlayAgent.listenTo(configuration, "change", function() {
         var changed = _.keys(configuration.changedAttributes())
         // if only overlay relevant flags have changed...
         if(_.intersection(changed, ["overlayType", "showGridPoints"]).length > 0) {
-            overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"));
+            overlayAgent.submit(drawOverlay, fieldAgent.value(), configuration.get("overlayType"), configuration.get("scale"), configuration.get("colorscale"));
         }
     });
 

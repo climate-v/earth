@@ -104,7 +104,9 @@ function standardGlobe() {
          */
         orientation: function(o, view) {
             var projection = this.projection, rotate = projection.rotate();
-            projection.translate(this.center(view));
+            if(µ.isValue(view)) {
+                projection.translate(this.center(view));
+            }
             if (µ.isValue(o)) {
                 var parts = o.split(","), λ = +parts[0], φ = +parts[1], scale = +parts[2];
                 var extent = this.scaleExtent();

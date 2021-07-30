@@ -7,7 +7,6 @@
  * https://github.com/cambecc/earth
  */
 
-import { proportion } from "./math";
 import * as d3 from 'd3';
 
 var τ = 2 * Math.PI;
@@ -97,68 +96,12 @@ function clearCanvas(canvas) {
     return canvas;
 }
 
-function colorInterpolator(start, end) {
-    var r = start[0], g = start[1], b = start[2];
-    var Δr = end[0] - r, Δg = end[1] - g, Δb = end[2] - b;
-    return function(i, a) {
-        return [Math.floor(r + i * Δr), Math.floor(g + i * Δg), Math.floor(b + i * Δb), a];
-    };
-}
-
-/**
- * Produces a color style in a rainbow-like trefoil color space. Not quite HSV, but produces a nice
- * spectrum. See http://krazydad.com/tutorials/makecolors.php.
- *
- * @param hue the hue rotation in the range [0, 1]
- * @param a the alpha value in the range [0, 255]
- * @returns {Array} [r, g, b, a]
- */
-function sinebowColor(hue, a) {
-    // Map hue [0, 1] to radians [0, 5/6τ]. Don't allow a full rotation because that keeps hue == 0 and
-    // hue == 1 from mapping to the same color.
-    var rad = hue * τ * 5/6;
-    rad *= 0.75;  // increase frequency to 2/3 cycle per rad
-
-    var s = Math.sin(rad);
-    var c = Math.cos(rad);
-    var r = Math.floor(Math.max(0, -c) * 255);
-    var g = Math.floor(Math.max(s, 0) * 255);
-    var b = Math.floor(Math.max(c, 0, -s) * 255);
-    return [r, g, b, a];
-}
-
-var BOUNDARY = 0.45;
-var fadeToWhite = colorInterpolator(sinebowColor(1.0, 0), [255, 255, 255]);
-
-/**
- * Interpolates a sinebow color where 0 <= i <= j, then fades to white where j < i <= 1.
- *
- * @param i number in the range [0, 1]
- * @param a alpha value in range [0, 255]
- * @returns {Array} [r, g, b, a]
- */
-function extendedSinebowColor(i, a) {
-    return i <= BOUNDARY ?
-        sinebowColor(i / BOUNDARY, a) :
-        fadeToWhite((i - BOUNDARY) / (1 - BOUNDARY), a);
-}
-
 function linearScale(min, max) {
-    return {
-        scaler: d3.scaleLinear().domain([min, max]),
-        gradient(i, a) {
-            return extendedSinebowColor(i, a);
-        }
-    }
+    return d3.scaleLinear().domain([min, max]);
 }
 
 function symlogScale(min, max) {
-    return {
-        scaler: d3.scaleSymlog().domain([min, max]),
-        gradient(i, a) {
-            return extendedSinebowColor(i, a);
-        }
-    }
+    return d3.scaleSymlog().domain([min, max]);
 }
 
 function logScale(min, max) {
@@ -167,63 +110,7 @@ function logScale(min, max) {
         min += 0.0000000001;
     }
 
-    return {
-        scaler: d3.scaleLog().domain([min, max]),
-        gradient(i, a) {
-            return extendedSinebowColor(i, a);
-        }
-    }
-}
-
-function asColorStyle(r, g, b, a) {
-    return "rgba(" + r + ", " + g + ", " + b + ", " + a + ")";
-}
-
-/**
- * @returns {Array} of wind colors and a method, indexFor, that maps wind magnitude to an index on the color scale.
- */
-function windIntensityColorScale(step, maxWind) {
-    const result = [];
-    for (let j = 85; j <= 255; j += step) {
-        result.push(asColorStyle(j, j, j, 1.0));
-    }
-    result.indexFor = function(m) {  // map wind speed to a style
-        return Math.floor(Math.min(m, maxWind) / maxWind * (result.length - 1));
-    };
-    return result;
-}
-
-/**
- * Creates a color scale composed of the specified segments. Segments is an array of two-element arrays of the
- * form [value, color], where value is the point along the scale and color is the [r, g, b] color at that point.
- * For example, the following creates a scale that smoothly transitions from red to green to blue along the
- * points 0.5, 1.0, and 3.5:
- *
- *     [ [ 0.5, [255, 0, 0] ],
- *       [ 1.0, [0, 255, 0] ],
- *       [ 3.5, [0, 0, 255] ] ]
- *
- * @param segments array of color segments
- * @returns {Function} a function(point, alpha) that returns the color [r, g, b, alpha] for the given point.
- */
-function segmentedColorScale(segments) {
-    var points = [], interpolators = [], ranges = [];
-    for (let i = 0; i < segments.length - 1; i++) {
-        points.push(segments[i+1][0]);
-        interpolators.push(colorInterpolator(segments[i][1], segments[i+1][1]));
-        ranges.push([segments[i][0], segments[i+1][0]]);
-    }
-
-    return function(point, alpha) {
-        let i;
-        for (i = 0; i < points.length - 1; i++) {
-            if (point <= points[i]) {
-                break;
-            }
-        }
-        const range = ranges[i];
-        return interpolators[i](proportion(point, range[0], range[1]), alpha);
-    };
+    return d3.scaleLog().domain([min, max])
 }
 
 /**
@@ -327,18 +214,12 @@ export default {
     isValue: isValue,
     coalesce: coalesce,
     zeroPad: zeroPad,
-    capitalize: capitalize,
     isFF: isFF,
     isMobile: isMobile,
     isEmbeddedInIFrame: isEmbeddedInIFrame,
     view: view,
     removeChildren: removeChildren,
     clearCanvas: clearCanvas,
-    sinebowColor: sinebowColor,
-    extendedSinebowColor: extendedSinebowColor,
-    scaled,
-    windIntensityColorScale: windIntensityColorScale,
-    segmentedColorScale: segmentedColorScale,
     formatCoordinates: formatCoordinates,
     formatScalar: formatScalar,
     formatVector: formatVector,

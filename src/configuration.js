@@ -33,6 +33,7 @@ function parse(hash, projectionNames) {
             topology: TOPOLOGY,
             overlayType: "default",
             scale: 'linear',
+            colorscale: 'sinebow',
             showGridPoints: false
         };
         micro.coalesce(tokens[4], "").split(OPTION_SEPARATOR).forEach(function(segment) {
@@ -60,6 +61,9 @@ function parse(hash, projectionNames) {
                     break;
                 case 'file':
                     result.file = optionValue;
+                    break;
+                case 'colorscale':
+                    result.colorscale = optionValue;
                     break;
                 default:
                     if(projectionNames.has(optionName) && (/^[\d\-.,]*$/.test(optionValue) || optionValue == null)) {
@@ -94,7 +98,8 @@ const Configuration = Backbone.Model.extend({
         const grid = attr.showGridPoints ? "grid=on" : "";
         const filename = (attr.file && attr.file !== "" ? `file=${attr.file}` : "");
         const scale = (attr.scale != null ? `scale=${attr.scale}` : "");
-        const options = [ol, proj, grid, filename, scale].filter(micro.isTruthy).join(OPTION_SEPARATOR);
+        const colorscale = (attr.colorscale != null ? `colorscale=${attr.colorscale}` : "");
+        const options = [ol, proj, grid, filename, scale, colorscale].filter(micro.isTruthy).join(OPTION_SEPARATOR);
         return [time, height, options].filter(micro.isTruthy).join("/");
     },
 
