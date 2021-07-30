@@ -513,9 +513,9 @@ const FACTORIES = {
                             return values[i];
                         },
                         scale: {
-                            bounds: [0, max],
-                            linear: µ.linearScale(0, max),
-                            logarithmic: µ.logScale(min, max)
+                            bounds: [min, max],
+                            linear: µ.linearScale(min, max),
+                            logarithmic: µ.symlogScale(min, max)
                         }
                     }
                 }

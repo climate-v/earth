@@ -152,6 +152,15 @@ function linearScale(min, max) {
     }
 }
 
+function symlogScale(min, max) {
+    return {
+        scaler: d3.scaleSymlog().domain([min, max]),
+        gradient(i, a) {
+            return extendedSinebowColor(i, a);
+        }
+    }
+}
+
 function logScale(min, max) {
     // Log scale may not go through zero.
     if (min === 0) {
@@ -337,5 +346,6 @@ export default {
     fetchResource,
     distortion: distortion,
     linearScale,
-    logScale
+    logScale,
+    symlogScale
 };
