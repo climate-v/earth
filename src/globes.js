@@ -104,6 +104,7 @@ function standardGlobe() {
          */
         orientation: function(o, view) {
             var projection = this.projection, rotate = projection.rotate();
+            projection.translate(this.center(view));
             if (µ.isValue(o)) {
                 var parts = o.split(","), λ = +parts[0], φ = +parts[1], scale = +parts[2];
                 var extent = this.scaleExtent();
@@ -111,7 +112,6 @@ function standardGlobe() {
                     [-λ, -φ, rotate[2]] :
                     this.newProjection(view).rotate());
                 projection.scale(_.isFinite(scale) ? clamp(scale, extent[0], extent[1]) : this.fit(view));
-                projection.translate(this.center(view));
                 return this;
             }
             return [(-rotate[0]).toFixed(2), (-rotate[1]).toFixed(2), Math.round(projection.scale())].join(",");
