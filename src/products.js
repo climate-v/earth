@@ -243,8 +243,8 @@ function averageGrid(grid) {
 
 const FACTORIES = {
     "wind": {
-        matches({ availableOverlays, ...attrs }) {
-            return availableOverlays.some(overlay => overlay.id === WIND_OVERLAY) && attrs.param === "wind";
+        matches({ availableOverlays }) {
+            return availableOverlays.some(overlay => overlay.id === WIND_OVERLAY);
         },
         create: function(attr, metadata) {
             const height = attr.heightIndex;

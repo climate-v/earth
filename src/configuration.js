@@ -1,7 +1,7 @@
 import Backbone from 'backbone';
 import micro from "./micro";
 
-const DEFAULT_CONFIG = "0/wind/0/orthographic";
+const DEFAULT_CONFIG = "0/0/orthographic";
 const TOPOLOGY = micro.isMobile() ? "/data/earth-topo-mobile.json?v2" : "/data/earth-topo.json?v2";
 const OPTION_SEPARATOR = "|";
 
@@ -22,13 +22,12 @@ const OPTION_SEPARATOR = "|";
  */
 function parse(hash, projectionNames) {
     let result = {};
-    //                  1     2      3    4    5
-    const tokens = /^(\d+)\/(\w+)\/(\d+)([\/](.+))?/.exec(hash);
+    //                  1     2      3    4
+    const tokens = /^(\d+)\/(\d+)([\/](.+))?/.exec(hash);
     if(tokens) {
         result = {
             timeIndex: parseInt(tokens[1]),
-            param: tokens[2],                   // non-empty alphanumeric _
-            heightIndex: parseInt(tokens[3]),   // non-empty alphanumeric _
+            heightIndex: parseInt(tokens[2]),
             projection: "orthographic",
             orientation: "",
             topology: TOPOLOGY,
@@ -36,7 +35,7 @@ function parse(hash, projectionNames) {
             scale: 'linear',
             showGridPoints: false
         };
-        micro.coalesce(tokens[5], "").split(OPTION_SEPARATOR).forEach(function(segment) {
+        micro.coalesce(tokens[4], "").split(OPTION_SEPARATOR).forEach(function(segment) {
             let optionName;
             let optionValue = null;
             if(segment.includes("=")) {
@@ -96,7 +95,7 @@ const Configuration = Backbone.Model.extend({
         const filename = (attr.file && attr.file !== "" ? `file=${attr.file}` : "");
         const scale = (attr.scale != null ? `scale=${attr.scale}` : "");
         const options = [ol, proj, grid, filename, scale].filter(micro.isTruthy).join(OPTION_SEPARATOR);
-        return [time, attr.param, height, options].filter(micro.isTruthy).join("/");
+        return [time, height, options].filter(micro.isTruthy).join("/");
     },
 
     /**

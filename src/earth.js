@@ -1153,53 +1153,12 @@ function init() {
     fieldAgent.on("update", updateLocationDetails);
     d3.select("#location-close").on("click", _.partial(clearLocationDetails, true));
 
-    // Add handlers for mode buttons.
-    d3.select("#wind-mode-enable").on("click", function() {
-        if(configuration.get("param") !== "wind") {
-            configuration.save({ param: "wind", surface: "surface", level: "level", overlayType: "default" });
-        }
-    });
-    configuration.on("change:param", function(x, param) {
-        d3.select("#wind-mode-enable").classed("highlighted", param === "wind");
-    });
-    d3.select("#ocean-mode-enable").on("click", function() {
-        if(configuration.get("param") !== "ocean") {
-            // When switching between modes, there may be no associated data for the current date. So we need
-            // find the closest available according to the catalog. This is not necessary if date is "current".
-            // UNDONE: this code is annoying. should be easier to get date for closest ocean product.
-            var ocean = { param: "ocean", surface: "surface", level: "currents", overlayType: "default" };
-            var attr = _.clone(configuration.attributes);
-            if(attr.date === "current") {
-                configuration.save(ocean);
-            } else {
-                try {
-                    // This is broken due to not having the date in the header anymore
-                    // if we need this again, this needs to be adapted to that change
-                    // const matchedProducts = products.productsFor(_.extend(attr, ocean));
-                    // const firstProduct = matchedProducts[0];
-                    // if(firstProduct.date) {
-                    //     configuration.save(_.extend(ocean, dateToConfig(firstProduct.date)));
-                    // }
-                } catch(ex) {
-                    report.error(ex);
-                }
-            }
-            stopCurrentAnimation(true);  // cleanup particle artifacts over continents
-        }
-    });
-    configuration.on("change:param", function(x, param) {
-        d3.select("#ocean-mode-enable").classed("highlighted", param === "ocean");
-    });
-
     d3.select("#option-show-grid").on("click", function() {
         configuration.save({ showGridPoints: !configuration.get("showGridPoints") });
     });
     configuration.on("change:showGridPoints", function(x, showGridPoints) {
         d3.select("#option-show-grid").classed("highlighted", showGridPoints);
     });
-
-    // Add handlers for ocean animation types.
-    bindButtonToConfiguration("#animate-currents", { param: "ocean", surface: "surface", level: "currents" });
 
     // Add handlers for all projection buttons.
     for(let projection of globes.keys()) {
