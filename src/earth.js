@@ -685,10 +685,6 @@ function showGridDetails(grids) {
         var langCode = d3.select("body").attr("data-lang") || "en";
         const pd = grids.primaryGrid.description(langCode)
         description = mainTitle + pd.qualifier;
-        if(grids.hasOverlay()) {
-            const od = grids.overlayGrid.description(langCode);
-            description += " + " + od.qualifier;
-        }
     }
     d3.select("#data-layer").text(description);
     d3.select("#data-center").text(center);
