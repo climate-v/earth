@@ -153,6 +153,11 @@ function linearScale(min, max) {
 }
 
 function logScale(min, max) {
+    // Log scale may not go through zero.
+    if (min === 0) {
+        min += 0.0000000001;
+    }
+
     return {
         scaler: d3.scaleLog().domain([min, max]),
         gradient(i, a) {
