@@ -3,7 +3,7 @@ import * as _ from "underscore";
 import { COLORSCALES } from "../colorscales";
 
 const TEMPLATE = `
-<span style="display: flex; flex-direction: row; width: 100%">
+<div style="display: flex; flex-direction: row; width: 100%">
     <% for(let [i, scale] of scales.entries()) { %>
         <span data-name="<%= scale.name %>" class="<%= (currentScale == scale.name ? "" : "text-button") %>"><%= scale.name %></span>
         <%= (i < scales.length - 1 ? " - " : "") %>
