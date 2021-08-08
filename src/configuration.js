@@ -33,7 +33,8 @@ function parse(hash, projectionNames) {
             topology: TOPOLOGY,
             overlayType: "default",
             scale: 'linear',
-            colorscale: 'sinebow',
+            colorScale: 'sinebow',
+            bounds: null,
             showGridPoints: false
         };
         micro.coalesce(tokens[4], "").split(OPTION_SEPARATOR).forEach(function(segment) {
@@ -62,8 +63,12 @@ function parse(hash, projectionNames) {
                 case 'file':
                     result.file = optionValue;
                     break;
-                case 'colorscale':
-                    result.colorscale = optionValue;
+                case 'colorScale':
+                    result.colorScale = optionValue;
+                    break;
+                case 'bounds':
+                    let boundsMatch = optionValue.split(',');
+                    result.bounds = [ parseFloat(boundsMatch[0]), parseFloat(boundsMatch[1]) ];
                     break;
                 default:
                     if(projectionNames.has(optionName) && (/^[\d\-.,]*$/.test(optionValue) || optionValue == null)) {
@@ -98,8 +103,9 @@ const Configuration = Backbone.Model.extend({
         const grid = attr.showGridPoints ? "grid=on" : "";
         const filename = (attr.file && attr.file !== "" ? `file=${attr.file}` : "");
         const scale = (attr.scale != null ? `scale=${attr.scale}` : "");
-        const colorscale = (attr.colorscale != null ? `colorscale=${attr.colorscale}` : "");
-        const options = [ol, proj, grid, filename, scale, colorscale].filter(micro.isTruthy).join(OPTION_SEPARATOR);
+        const colorscale = (attr.colorScale != null ? `colorScale=${attr.colorScale}` : "");
+        const bounds = (attr.bounds != null ? `bounds=${attr.bounds[0].toExponential()},${attr.bounds[1].toExponential()}`: "");
+        const options = [ol, proj, grid, filename, scale, colorscale, bounds].filter(micro.isTruthy).join(OPTION_SEPARATOR);
         return [time, height, options].filter(micro.isTruthy).join("/");
     },
 

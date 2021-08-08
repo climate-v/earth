@@ -347,11 +347,7 @@ const FACTORIES = {
                         data: function(i) {
                             return [uValues[i], vValues[i]];
                         },
-                        scale: {
-                            bounds: [0, max],
-                            linear: µ.linearScale(0, max),
-                            logarithmic: µ.logScale(0, max)
-                        }
+                        bounds: [0, max],
                     }
                 },
                 units: [
@@ -432,11 +428,7 @@ const FACTORIES = {
                         data: function(i) {
                             return values[i];
                         },
-                        scale: {
-                            bounds: [min, max],
-                            linear: µ.linearScale(min, max),
-                            logarithmic: µ.logScale(min, max)
-                        }
+                        bounds: [min, max],
                     }
                 },
                 units: [
@@ -527,11 +519,7 @@ const FACTORIES = {
                         data: function(i) {
                             return values[i];
                         },
-                        scale: {
-                            bounds: [min, max],
-                            linear: µ.linearScale(min, max),
-                            logarithmic: µ.symlogScale(min, max)
-                        }
+                        bounds: [min, max],
                     }
                 }
             });
@@ -1020,8 +1008,8 @@ export function buildGrid(builder) {
             }
         }
     };
-    if(builder.scale) {
-        result.scale = builder.scale;
+    if(builder.bounds) {
+        result.bounds = builder.bounds;
     }
     if(builder.units) {
         result.units = builder.units;

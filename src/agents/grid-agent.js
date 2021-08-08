@@ -49,11 +49,11 @@ export class GridSelection {
         return this.overlay;
     }
 
-    get scale() {
+    get bounds() {
         if(this.overlay != null) {
-            return this.overlay.scale;
+            return this.overlay.bounds;
         }
-        return this.primary.scale;
+        return this.primary.bounds;
     }
 }
 

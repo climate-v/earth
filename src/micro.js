@@ -7,8 +7,6 @@
  * https://github.com/cambecc/earth
  */
 
-import * as d3 from 'd3';
-
 var τ = 2 * Math.PI;
 var H = 0.0000360;  // 0.0000360°φ ~= 4m
 
@@ -68,7 +66,7 @@ function isEmbeddedInIFrame() {
 }
 
 /**
- * @returns {width: (Number), height: (Number)} an object that describes the size of the browser's current view.
+ * @returns {width: Number, height: Number} an object that describes the size of the browser's current view.
  */
 function view() {
     var w = window;
@@ -94,23 +92,6 @@ function removeChildren(element) {
 function clearCanvas(canvas) {
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
     return canvas;
-}
-
-function linearScale(min, max) {
-    return d3.scaleLinear().domain([min, max]);
-}
-
-function symlogScale(min, max) {
-    return d3.scaleSymlog().domain([min, max]);
-}
-
-function logScale(min, max) {
-    // Log scale may not go through zero.
-    if (min === 0) {
-        min += 0.0000000001;
-    }
-
-    return d3.scaleLog().domain([min, max])
 }
 
 /**
@@ -205,10 +186,6 @@ function distortion(projection, λ, φ, x, y) {
     ];
 }
 
-function scaled(value, min, max) {
-    return Math.abs((value - min) / (max - min));
-}
-
 export default {
     isTruthy: isTruthy,
     isValue: isValue,
@@ -226,7 +203,4 @@ export default {
     loadJson,
     fetchResource,
     distortion: distortion,
-    linearScale,
-    logScale,
-    symlogScale
 };
