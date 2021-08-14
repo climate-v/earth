@@ -47,7 +47,7 @@ export const HeightView = Backbone.View.extend({
                 }
             });
         } else {
-            const inverted = direction === HEIGHT_DIRECTION.HIGH_TO_LOW;
+            const inverted = direction === HEIGHT_DIRECTION.LOW_TO_HIGH;
             const index = (inverted ? (this.model.attributes.values.length - 1) - this.model.attributes.selected : this.model.attributes.selected);
             this.$el.html(this.genericTemplate({...this.model.attributes, selectedDisplay: index}));
             this.delegateEvents({
