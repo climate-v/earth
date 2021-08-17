@@ -17,7 +17,7 @@ import { newLoggedAgent } from "./agents/agents";
 import fileAgent, { downloadFile, loadFile } from "./agents/file-agent";
 import metadataAgent, { buildMetadata } from "./agents/metadata-agent";
 import gridAgent, { buildGrids } from "./agents/grid-agent";
-import { createApi } from "./api";
+import { startWorker } from "./worker-api";
 import { colorAccordingToScale, windIntensityColorScale } from "./colorscales";
 import { buildConfiguration } from "./configuration";
 import globes from "./globes";
@@ -57,7 +57,7 @@ const TRANSPARENT_BLACK = [0, 0, 0, 0];     // singleton 0 rgba
 
 let view = µ.view();
 
-let api = null;
+let worker = null;
 
 // Construct the page's main internal components:
 
@@ -903,7 +903,7 @@ function init() {
                     return;
                 }
 
-                fileAgent.submit(loadFile, api, file);
+                fileAgent.submit(loadFile, worker, file);
             }
         }
     });
@@ -958,7 +958,7 @@ function init() {
 
     fileAgent.listenTo(configuration, "change:file", (source, attr) => {
         if(attr != null && attr !== "") {
-            fileAgent.submit(downloadFile, api, attr);
+            fileAgent.submit(downloadFile, worker, attr);
         }
     });
 
@@ -993,6 +993,10 @@ function init() {
 
     configuration.listenTo(fileAgent, "update", (_, agent) => {
         const value = agent.value();
+        if(value == null) {
+            return;
+        }
+
         if(value.source.type === "local") {
             configuration.save({ file: null });
         } else {
@@ -1064,12 +1068,16 @@ function init() {
     });
 
     metadataAgent.listenTo(fileAgent, "update", () => {
+        if(fileAgent.value() == null) {
+            return;
+        }
+
         stopCurrentAnimation(true);
-        metadataAgent.submit(buildMetadata, api);
+        metadataAgent.submit(buildMetadata, worker);
     });
 
     gridAgent.listenTo(metadataAgent, "update", () => {
-        gridAgent.submit(buildGrids, configuration, api);
+        gridAgent.submit(buildGrids, configuration, worker);
     });
 
     gridAgent.listenTo(configuration, "change", function() {
@@ -1098,7 +1106,7 @@ function init() {
         }
 
         if(rebuildRequired) {
-            gridAgent.submit(buildGrids, configuration, api);
+            gridAgent.submit(buildGrids, configuration, worker);
         }
     });
     gridAgent.on("submit", function() {
@@ -1179,13 +1187,13 @@ function init() {
     });
 }
 
-function start(createdApi) {
+function start(createdWorker) {
     // Everything is now set up, so load configuration from the hash fragment and kick off change events.
-    api = createdApi;
+    worker = createdWorker;
     configuration.fetch();
 }
 
-Promise.resolve().then(init).then(createApi).then(start).catch(report.error);
+Promise.resolve().then(init).then(startWorker).then(start).catch(report.error);
 
 window.addEventListener("unload", () => {
     const currentFile = fileAgent.value();

@@ -24,8 +24,9 @@ import µ from './micro';
 function buildProduct(overrides) {
     return _.extend({
         description: "",
-        build(...args) {
-            return _.extend(this, buildGrid(this.builder.apply(this, args)));
+        async build(...args) {
+            let builder = await this.builder.apply(this, args);
+            return _.extend(this, buildGrid(builder));
         }
     }, overrides);
 }
@@ -280,18 +281,18 @@ const FACTORIES = {
                     name: {en: "Wind", ja: "風速"},
                     qualifier: {en: " @ " + describeSurface(attr, metadata), ja: " @ " + describeSurface(attr, metadata)}
                 }),
-                builder: function(api) {
+                builder: async function(worker) {
                     const windOverlay = metadata.availableOverlays.find(overlay => overlay.type === "wind");
                     let uValues, vValues;
                     let max = 0;
                     let header;
                     if(metadata.irregular != null) {
-                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
-                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const lon = convertLonRadianArray(metadata.dimensions.longitude.values);
+                        const lat = convertLatRadianArray(metadata.dimensions.latitude.values);
                         const cellCount = metadata.irregular.cellCount;
 
-                        const uGridValues = api.getVariableValues(windOverlay.u.name, [time, height, 0], [1, 1, cellCount]);
-                        const vGridValues = api.getVariableValues(windOverlay.v.name, [time, height, 0], [1, 1, cellCount]);
+                        const uGridValues = await worker.getValues(time, height, windOverlay.u.name, true);
+                        const vGridValues = await worker.getValues(time, height, windOverlay.v.name, true);
 
                         const gridDescription = getIrregularGridDescription(lat, lon);
 
@@ -324,11 +325,9 @@ const FACTORIES = {
                         vValues = vGrid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
-                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
                         try {
-                            vValues = api.getVariableValues(windOverlay.v.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
-                            uValues = api.getVariableValues(windOverlay.u.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                            uValues = await worker.getValues(time, height, windOverlay.u.name);
+                            vValues = await worker.getValues(time, height, windOverlay.v.name);
                         } catch(er) {
                             throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
                         }
@@ -382,19 +381,19 @@ const FACTORIES = {
                     name: {en: "Temp", ja: "気温"},
                     qualifier: {en: " ", ja: " "}
                 }),
-                builder: function(api) {
+                builder: async function(worker) {
                     const tempOverlay = metadata.availableOverlays.find(overlay => overlay.type === "temp");
                     let header;
                     let values;
                     if(metadata.irregular != null) {
-                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
-                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const lon = convertLonRadianArray(metadata.dimensions.longitude.values);
+                        const lat = convertLatRadianArray(metadata.dimensions.latitude.values);
                         const gridDescription = getIrregularGridDescription(lat, lon);
 
                         const tempGrid = gridDescription.createGrid();
 
                         const cellCount = metadata.irregular.cellCount;
-                        const tempValues = api.getVariableValues(tempOverlay.name, [time, height, 0], [1, 1, cellCount]);
+                        const tempValues = await worker.getValues(time, height, tempOverlay.name, true);
 
                         for(let i = 0; i < cellCount; i++) {
                             const latIndex = gridDescription.latToGridPos(lat[i]);
@@ -408,10 +407,7 @@ const FACTORIES = {
                         values = tempGrid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
-                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
-
-                        values = api.getVariableValues(tempOverlay.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        values = await worker.getValues(time, height, tempOverlay.name);
                         header = createHeader(metadata, time);
                     }
                     let max = fastArrayMax(values);
@@ -463,21 +459,21 @@ const FACTORIES = {
                     name: { en: attr.overlay, ja: "気温" },
                     qualifier: { en: " ", ja: " " }
                 }),
-                builder: function(api) {
+                builder: async function(worker) {
                     const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
-                    const unit = api.getVariableStringAttribute(overlayDef.name, 'units');
+                    const unit = overlayDef.unit;
                     let header;
                     let values;
                     let min = Number.POSITIVE_INFINITY, max = Number.NEGATIVE_INFINITY;
                     if(metadata.irregular != null) {
-                        const lon = convertLonRadianArray(api.getAllVariableValues(metadata.dimensions.longitude.name));
-                        const lat = convertLatRadianArray(api.getAllVariableValues(metadata.dimensions.latitude.name));
+                        const lon = convertLonRadianArray(metadata.dimensions.longitude.values);
+                        const lat = convertLatRadianArray(metadata.dimensions.latitude.values);
                         const gridDescription = getIrregularGridDescription(lat, lon);
 
                         const grid = gridDescription.createGrid();
 
                         const cellCount = metadata.irregular.cellCount;
-                        const dataValues = api.getVariableValues(overlayDef.name, [time, height, 0], [1, 1, cellCount]);
+                        const dataValues = await worker.getValues(time, height, overlayDef.name, true);
 
                         for(let i = 0; i < cellCount; i++) {
                             const latIndex = gridDescription.latToGridPos(lat[i]);
@@ -499,10 +495,7 @@ const FACTORIES = {
                         values = grid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
-                        const latitudeDimensionSize = metadata.dimensions.latitude.size;
-                        const longitudeDimensionSize = metadata.dimensions.longitude.size;
-
-                        values = api.getVariableValues(overlayDef.name, [time, height, 0, 0], [1, 1, latitudeDimensionSize, longitudeDimensionSize]);
+                        values = await worker.getValues(time, height, overlayDef.name);
                         min = fastArrayMin(values);
                         max = fastArrayMax(values);
                         header = createHeader(metadata, time);
@@ -1018,14 +1011,10 @@ export function buildGrid(builder) {
     return result;
 }
 
-function productsFor(attributes, metadata) {
+export function productsFor(attributes, metadata) {
     const attr = _.clone(attributes);
     return _.values(FACTORIES)
         .filter(factory => factory.matches({ availableOverlays: metadata.availableOverlays, ...attr}))
         .map(factory => factory.create(attr, metadata))
         .filter(µ.isValue);
 }
-
-export default {
-    productsFor: productsFor
-};

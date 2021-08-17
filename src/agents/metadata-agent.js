@@ -53,13 +53,12 @@ function findFirstMatching(...getters) {
  * `attribute` of the variable matches the expected `value` and
  * gets the first one.
  *
- * @param api reference to the instantiated visualize api to do wasm calls
  * @param attribute the attribute of the variables to extract
  * @param list the list of variables to search through
  * @param value the value that we're looking for
  * @returns {*}
  */
-function filterMatchingAttribute(api, attribute, list, value) {
+function filterMatchingAttribute(attribute, list, value) {
     let filter;
     if(typeof value === "string") {
         filter = (x) => x === value;
@@ -68,136 +67,139 @@ function filterMatchingAttribute(api, attribute, list, value) {
     }
 
     return list.find(dimension => {
-        const unit = api.getVariableStringAttribute(dimension, attribute);
-        return filter(unit);
+        const foundValue = dimension.attributes[attribute];
+        return filter(foundValue);
     });
 }
 
-function filterHasAttribute(api, attribute, list) {
+function filterHasAttribute(attribute, list) {
     return list.find(variable => {
-        const value = api.getVariableStringAttribute(variable, attribute);
+        const value = variable.attributes[attribute];
         return value !== "";
     });
 }
 
-function filterMatchingVariableWithUnit(api, dimensions, unit) {
-    return filterMatchingAttribute(api, "units", dimensions, unit);
+function filterMatchingVariableWithUnit(dimensions, unit) {
+    return filterMatchingAttribute("units", dimensions, unit);
 }
 
-function filterMatchingVariableWithStandardName(api, variables, name) {
-    return filterMatchingAttribute(api, "standard_name", variables, name);
+function filterMatchingVariableWithStandardName(variables, name) {
+    return filterMatchingAttribute("standard_name", variables, name);
 }
 
-function filterMatchingVariableWithLongName(api, variables, name) {
-    return filterMatchingAttribute(api, "long_name", variables, name);
+function filterMatchingVariableWithLongName(variables, name) {
+    return filterMatchingAttribute("long_name", variables, name);
 }
 
-function findLevitationDimension(api, dimensions) {
+function findLevitationDimension(dimensions) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "axis", dimensions, "Z"),
-        () => filterMatchingVariableWithStandardName(api, dimensions, "height")
+        () => filterMatchingAttribute("axis", dimensions, "Z"),
+        () => filterMatchingVariableWithStandardName(dimensions, "height")
     );
 }
 
-function findLatDimension(api, dimensions) {
+function findLatDimension(dimensions) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "axis", dimensions, "Y"),
-        () => filterMatchingVariableWithUnit(api, dimensions, "degrees_north"),
-        () => filterMatchingVariableWithStandardName(api, dimensions, "latitude")
+        () => filterMatchingAttribute("axis", dimensions, "Y"),
+        () => filterMatchingVariableWithUnit(dimensions, "degrees_north"),
+        () => filterMatchingVariableWithStandardName(dimensions, "latitude")
     );
 }
 
-function findLonDimension(api, dimensions) {
+function findLonDimension(dimensions) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "axis", dimensions, "X"),
-        () => filterMatchingVariableWithUnit(api, dimensions, "degrees_east"),
-        () => filterMatchingVariableWithStandardName(api, dimensions, "longitude")
+        () => filterMatchingAttribute("axis", dimensions, "X"),
+        () => filterMatchingVariableWithUnit(dimensions, "degrees_east"),
+        () => filterMatchingVariableWithStandardName(dimensions, "longitude")
     );
 }
 
-function findCLatDimension(api, variables) {
+function findCLatDimension(variables) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "long_name", variables, "center latitude"),
-        () => filterMatchingVariableWithStandardName(api, variables, "latitude"),
-        () => variables.find(variable => variable === "clat")
+        () => filterMatchingAttribute("long_name", variables, "center latitude"),
+        () => filterMatchingVariableWithStandardName(variables, "latitude"),
+        () => variables.find(variable => variable.name === "clat")
     );
 }
 
-function findCLonDimension(api, variables) {
+function findCLonDimension(variables) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "long_name", variables, "center longitude"),
-        () => filterMatchingVariableWithStandardName(api, variables, "longitude"),
-        () => variables.find(variable => variable === "clon")
+        () => filterMatchingAttribute("long_name", variables, "center longitude"),
+        () => filterMatchingVariableWithStandardName(variables, "longitude"),
+        () => variables.find(variable => variable.name === "clon")
     );
 }
 
-function findUWindVariable(api, variables) {
-    return filterMatchingVariableWithStandardName(api, variables, "eastward_wind");
+function findUWindVariable(variables) {
+    return filterMatchingVariableWithStandardName(variables, "eastward_wind");
 }
 
-function findVWindVariable(api, variables) {
-    return filterMatchingVariableWithStandardName(api, variables, "northward_wind");
+function findVWindVariable(variables) {
+    return filterMatchingVariableWithStandardName(variables, "northward_wind");
 }
 
-function findTimeDimension(api, dimensions) {
+function findTimeDimension(dimensions) {
     return findFirstMatching(
-        () => filterMatchingAttribute(api, "axis", dimensions, "T"),
-        () => filterMatchingVariableWithStandardName(api, dimensions, "time")
+        () => filterMatchingAttribute("axis", dimensions, "T"),
+        () => filterMatchingVariableWithStandardName(dimensions, "time")
     );
 }
 
-function variableHasCorrectDimensions(api, variable, dimensions) {
-    const dimensionsForVariable = api.getVariableDimensions(variable).split(",");
-    return dimensionsForVariable.length === dimensions.length && dimensionsForVariable.every(dim => dimensions.includes(dim));
+function variableHasCorrectDimensions(variable, dimensions) {
+    const dimensionsForVariable = variable.dimensions;
+    return dimensionsForVariable.length === dimensions.length && dimensionsForVariable.every(dim => dimensions.some(dimension => dimension.name === dim));
 }
 
-function createWindOverlay(api, variables) {
-    let uVariableName = findUWindVariable(api, variables);
-    let vVariableName = findVWindVariable(api, variables);
+function createWindOverlay(variables) {
+    let uVariable = findUWindVariable(variables);
+    let vVariable = findVWindVariable(variables);
 
-    if(uVariableName == null || vVariableName == null) {
+    if(uVariable == null || vVariable == null) {
         return null;
     }
 
-    variables.splice(variables.indexOf(uVariableName), 1);
-    variables.splice(variables.indexOf(vVariableName), 1);
+    variables.splice(variables.indexOf(uVariable), 1);
+    variables.splice(variables.indexOf(vVariable), 1);
 
     return {
         displayName: "Wind",
         type: "wind",
         id: "wind",
-        u: { name: uVariableName },
-        v: { name: vVariableName }
+        u: { name: uVariable.name },
+        v: { name: vVariable.name }
     }
 }
 
-function createTempOverlay(api, variables) {
-    const tempVariable = variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable))
-        || filterMatchingVariableWithLongName(api, variables, "Temperature");
+function createTempOverlay(variables) {
+    const tempVariable = findFirstMatching(
+        () => variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable.name)),
+        () => filterMatchingVariableWithLongName(variables, "Temperature")
+    );
     if(tempVariable != null) {
         variables.splice(variables.indexOf(tempVariable), 1);
         return {
             type: "temp",
             id: "temp",
             displayName: "Temp",
-            name: tempVariable
+            name: tempVariable.name
         };
     } else {
         return null;
     }
 }
 
-function createGenericOverlay(api, variable, allDimensions) {
-    const dimensions = api.getVariableDimensions(variable).split(",");
-    if(dimensions.length !== allDimensions.length || dimensions.some(dim => !allDimensions.includes(dim))) {
+function createGenericOverlay(variable, allDimensions) {
+    const dimensions = variable.dimensions;
+    if(dimensions.length !== allDimensions.length || dimensions.some(dim => !allDimensions.some(dimension => dimension.name === dim))) {
         return null;
     }
 
     return {
         type: "generic",
-        id: variable,
-        displayName: variable,
-        name: variable
+        id: variable.name,
+        unit: variable.attributes["unit"],
+        displayName: variable.name,
+        name: variable.name
     }
 }
 
@@ -210,27 +212,25 @@ function createGenericOverlay(api, variable, allDimensions) {
  * From the remaining variables it will try to create generic overlays, making sure
  * that we only consider variables that have matching dimensions.
  *
- * @param api reference to the instantiated visualize api to do wasm calls
  * @param allVariables list of all the variables from the file
  * @param dimensions the list of dimensions from the file
  * @param irregularConfig optional configuration for irregular grids if the loaded file
  *          uses an irregular grid. Null otherwise.
  * @returns {*[]}
  */
-function getAvailableOverlays(api, allVariables, dimensions, irregularConfig) {
-    const variables = allVariables.filter(variable => !dimensions.includes(variable));
+function getAvailableOverlays(allVariables, dimensions, irregularConfig) {
+    const dims = (irregularConfig != null ? irregularConfig.dimensions : dimensions);
+    const variables = allVariables.filter(variable => !dims.some(dimension => dimension.name === variable.name));
     const overlays = [];
     SPECIAL_OVERLAYS.forEach(overlay => {
-        const overlayConfig = OVERLAY_FACTORIES[overlay](api, variables);
+        const overlayConfig = OVERLAY_FACTORIES[overlay](variables);
         if(overlayConfig != null) {
             overlays.push(overlayConfig);
         }
     });
 
-    const dims = (irregularConfig != null ? irregularConfig.dimensions : dimensions);
-
-    variables.filter(variable => variableHasCorrectDimensions(api, variable, dims)).forEach(variable => {
-        let overlay = createGenericOverlay(api, variable, dims);
+    variables.filter(variable => variableHasCorrectDimensions(variable, dims)).forEach(variable => {
+        let overlay = createGenericOverlay(variable, dims);
         if(overlay != null) {
             overlays.push(overlay);
         }
@@ -241,12 +241,8 @@ function getAvailableOverlays(api, allVariables, dimensions, irregularConfig) {
     return overlays;
 }
 
-function getTimeValues(api, timeVariable) {
-    return api.getAllVariableValues(timeVariable);
-}
-
-function getElevationLevels(api, levitationVariable) {
-    return api.getAllVariableValues(levitationVariable);
+async function getVariableValues(worker, variable) {
+    return await worker.getVariableValues(variable.name, variable.length);
 }
 
 /**
@@ -286,29 +282,32 @@ function getDimensionDirection(values, inverted) {
     }
 }
 
-export function buildMetadata(api) {
-    const dimensions = api.getDimensions().split(",");
-    const variables = api.getVariables().split(",");
+export async function buildMetadata(worker) {
+    const dimensions = await worker.getDimensions();
+    const variables = await worker.getVariables();
 
-    const centerName = api.getStringAttribute("institution");
-    const title = api.getStringAttribute("title");
+    const centerName = await worker.getAttribute("institution");
+    const title = await worker.getAttribute("title");
 
     let irregular = null;
 
+    const dimensionVariables =  variables.filter(variable => dimensions.some(dimension => dimension.name === variable.name));
+
     const config = {
-        levitation: findLevitationDimension(api, dimensions),
-        latitude: findLatDimension(api, dimensions),
-        longitude: findLonDimension(api, dimensions),
-        time: findTimeDimension(api, dimensions)
+        levitation: findLevitationDimension(dimensionVariables),
+        latitude: findLatDimension(dimensionVariables),
+        longitude: findLonDimension(dimensionVariables),
+        time: findTimeDimension(dimensionVariables)
     };
 
-    if(config.latitude == null && config.longitude == null && dimensions.includes('ncells')) {
-        config.longitude = findCLonDimension(api, variables);
-        config.latitude = findCLatDimension(api, variables);
+    if(config.latitude == null && config.longitude == null && dimensions.some(dim => dim.name === 'ncells')) {
+        config.longitude = findCLonDimension(variables);
+        config.latitude = findCLatDimension(variables);
+        let cellDimension = dimensions.find(dimension => dimension.name === 'ncells');
         irregular = {
-            cellDimension: 'ncells',
-            cellCount: api.getDimensionLength('ncells'),
-            dimensions: [config.time, config.levitation, 'ncells']
+            cellDimension: cellDimension.name,
+            cellCount: cellDimension.length,
+            dimensions: [config.time, config.levitation, cellDimension]
         };
     }
 
@@ -318,15 +317,15 @@ export function buildMetadata(api) {
         }
     }
 
-    const availableOverlays = getAvailableOverlays(api, variables, dimensions, irregular);
+    const availableOverlays = getAvailableOverlays(variables, dimensions, irregular);
 
-    const timeValues = getTimeValues(api, config.time);
-    const elevationLevels = getElevationLevels(api, config.levitation);
-    let inverted = api.getVariableStringAttribute(config.levitation, "positive") !== "down";
+    const timeValues = await getVariableValues(worker, config.time);
+    const elevationLevels = await getVariableValues(worker, config.levitation);
+    let inverted = config.levitation.attributes["positive"] === "down";
     const elevationDirection = getDimensionDirection(elevationLevels, inverted);
 
-    const longitudeDimensionSize = api.getDimensionLength(config.longitude);
-    const latitudeDimensionSize = api.getDimensionLength(config.latitude);
+    const longitudeValues = await getVariableValues(worker, config.longitude);
+    const latitudeValues = await getVariableValues(worker, config.latitude);
 
     return {
         centerName,
@@ -335,31 +334,33 @@ export function buildMetadata(api) {
         irregular,
         dimensions: {
             time: {
-                name: config.time,
+                name: config.time.name,
                 values: timeValues,
                 size: timeValues.length
             },
             levitation: {
-                name: config.levitation,
+                name: config.levitation.name,
                 values: elevationLevels,
-                unit: api.getVariableStringAttribute(config.levitation, "units"),
+                unit: config.levitation.attributes["units"],
                 size: elevationLevels.length,
                 direction: elevationDirection
             },
             latitude: {
-                name: config.latitude,
-                size: latitudeDimensionSize,
-                unit: api.getVariableStringAttribute(config.latitude, "units"),
-                range: (irregular ? [] : [api.getVariableValue(config.latitude, [0]), api.getVariableValue(config.latitude, [latitudeDimensionSize - 1])])
+                name: config.latitude.name,
+                size: latitudeValues.length,
+                unit: config.latitude.attributes["units"],
+                values: latitudeValues,
+                range: (irregular ? [] : [latitudeValues[0], latitudeValues[latitudeValues.length - 1]])
             },
             longitude: {
-                name: config.longitude,
-                size: longitudeDimensionSize,
-                unit: api.getVariableStringAttribute(config.longitude, "units"),
-                range: (irregular ? [] : [api.getVariableValue(config.longitude, [0]), api.getVariableValue(config.longitude, [longitudeDimensionSize - 1])])
+                name: config.longitude.name,
+                size: longitudeValues.length,
+                unit: config.longitude.attributes["units"],
+                values: longitudeValues,
+                range: (irregular ? [] : [longitudeValues[0], longitudeValues[longitudeValues.length - 1]])
             }
         }
-    }
+    };
 }
 
 /**

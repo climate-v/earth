@@ -1,7 +1,7 @@
 import fileAgent from "../agents/file-agent";
 import metadataAgent from "../agents/metadata-agent";
 import log from "../log";
-import products from "../products";
+import {productsFor} from "../products";
 import report from "../report";
 import { newLoggedAgent } from "./agents";
 
@@ -57,13 +57,14 @@ export class GridSelection {
     }
 }
 
-export function buildGrids(configuration, api) {
+export async function buildGrids(configuration, worker) {
     report.status("Building grid...");
     log.time("build grids");
-    const selectedProducts = products.productsFor(configuration.attributes, metadataAgent.value());
-    const builtProducts = selectedProducts.map(product => {
-        return product.build(api, fileAgent.value());
-    });
+    const selectedProducts = productsFor(configuration.attributes, metadataAgent.value());
+    const builtProducts = await Promise.all(selectedProducts.map(async product => {
+        return await product.build(worker, fileAgent.value());
+    }));
+
     log.time("build grids");
 
     if(builtProducts.length === 0) {
