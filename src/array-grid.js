@@ -18,9 +18,6 @@ export class ArrayGrid {
     }
 
     setAt({x, y}, value) {
-        if(x < 0 || y < 0 || value == null) {
-            debugger;
-        }
         const index = this.width * y + x;
         return this.grid[index] = value;
     }
