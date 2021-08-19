@@ -84,47 +84,54 @@ const WorkerState = {
     }
 }
 
-
+// Make sure we first load the wasm before we accept requests
 wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
     console.log("Worker started.");
     self.onmessage = (ev) => {
-        switch(ev.data.key) {
-            case "load":
-                let fileResult = WorkerState.loadFile(ev.data.value);
-                self.postMessage({ key: "load", value: fileResult });
-                break;
-            case "loadRemote":
-                let remoteResult = WorkerState.loadRemote(ev.data.value);
-                self.postMessage({ key: "loadRemote", value: remoteResult });
-                break;
-            case "attribute":
-                let attr = WorkerState.getAttribute(ev.data.value);
-                self.postMessage({ key: "attribute", value: attr});
-                break;
-            case "variables":
-                self.postMessage({ key: "variables", value: WorkerState.getVariables()});
-                break;
-            case "dimensions":
-                self.postMessage({ key: "dimensions", value: WorkerState.getDimensions() });
-                break;
-            case "values": {
-                let { height, time, variable, irregular } = ev.data.value;
-                let data = WorkerState.getData(time, height, variable, irregular);
-                self.postMessage({
-                    key: "values",
-                    value: data
-                }, [data]);
-                break;
+        try {
+            switch(ev.data.key) {
+                case "load":
+                    let fileResult = WorkerState.loadFile(ev.data.value);
+                    self.postMessage({ key: "load", value: fileResult });
+                    break;
+                case "loadRemote":
+                    let remoteResult = WorkerState.loadRemote(ev.data.value);
+                    self.postMessage({ key: "loadRemote", value: remoteResult });
+                    break;
+                case "attribute":
+                    let attr = WorkerState.getAttribute(ev.data.value);
+                    self.postMessage({ key: "attribute", value: attr });
+                    break;
+                case "variables":
+                    self.postMessage({ key: "variables", value: WorkerState.getVariables() });
+                    break;
+                case "dimensions":
+                    self.postMessage({ key: "dimensions", value: WorkerState.getDimensions() });
+                    break;
+                case "values": {
+                    let { height, time, variable, irregular } = ev.data.value;
+                    let data = WorkerState.getData(time, height, variable, irregular);
+                    self.postMessage({
+                        key: "values",
+                        value: data
+                    }, [data]);
+                    break;
+                }
+                case "variableValues": {
+                    let { variable, length } = ev.data.value;
+                    let data = WorkerState.getVariableData(variable, length);
+                    self.postMessage({
+                        key: "variableValues",
+                        value: data
+                    }, [data]);
+                    break;
+                }
             }
-            case "variableValues": {
-                let {variable, length} = ev.data.value;
-                let data = WorkerState.getVariableData(variable, length);
-                self.postMessage({
-                    key: "variableValues",
-                    value: data
-                }, [data]);
-                break;
-            }
+        } catch(ex) {
+            self.postMessage({
+                key: "error",
+                value: ex
+            });
         }
     };
 });

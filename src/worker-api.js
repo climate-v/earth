@@ -7,9 +7,12 @@
  * @returns {Promise<any>} The promise which resolves with the response
  */
 function call(worker, key, value) {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
         worker.addEventListener("message", function caller(ev) {
-            if(ev.data.key === key) {
+            if(ev.data.key === "error") {
+                reject(ev.data.value);
+                worker.removeEventListener("message", caller);
+            } else if(ev.data.key === key) {
                 worker.removeEventListener("message", caller);
                 resolve(ev.data.value);
             }
