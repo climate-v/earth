@@ -30,6 +30,12 @@ html, body, div, span, h1, h2, h3, h4, h5, h6, p, a, svg, canvas {
     }
 }
 
+@media (min-height: 700px) {
+    .menu-input {
+        height: 25px;
+    }
+}
+
 /**************************************************************************************************
  * Page Styling
  **************************************************************************************************/
@@ -241,7 +247,6 @@ body {
 .menu-input {
     background-color: rgba(5, 10, 30, 0.85);
     color: white;
-    height: 25px;
     border: rgba(17, 33, 101, 0.85) solid 2px;
 }
 
