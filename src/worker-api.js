@@ -25,6 +25,13 @@ function call(worker, key, value) {
     });
 }
 
+/**
+ * Maps the kind the backend assigned to something more helpful
+ * that we can work with.
+ *
+ * @param kind the ID of the kind/type
+ * @returns {string} the corresponding readable name of the type
+ */
 function mapKindToType(kind) {
     // See visualize/src/wrapper.rs
     switch(kind) {
@@ -39,8 +46,13 @@ function mapKindToType(kind) {
 
 /**
  * Creates the correctly configured proxy for a view with the given type.
- * See {@see createBEArrayProxy} for more information.
+ * This is necessary as the data in netcdf files is returned as big endian
+ * and not little endian, which is the assumed notation in the browser.
  *
+ * Currently, this handles the four common data types:
+ *  float32, float64, int16, int32.
+ *
+ * @see createBEArrayProxy
  * @param view The data view with access to the data
  * @param type The type of the elements inside the data view
  * @returns Proxy
@@ -81,7 +93,9 @@ function createProxyForType(view, type) {
 /**
  * This creates a proxy for the given data view. This proxy tries to make it look like it's actually
  * a (more or less) typed array. This is useful for cases when you just want to work on an array but
- * can't because the underlying data is big endian and not little endian.
+ * can't because the underlying data is big endian and not little endian. `UIn32Array` and similar
+ * can wrap such a buffer, but only work with little endian value notation and cannot be configured
+ * otherwise.
  *
  * The proxy only emulates a few select things, these include:
  *  - length
@@ -197,6 +211,10 @@ export function startWorker() {
             }
         },
         async initForFile() {
+            // Load & cache variables and dimensions for faster access,
+            // but more importantly, get the variable types so we can
+            // create the proper proxies when values are requested.
+
             this.variables = await call(this.worker, "variables", null);
             for(let variable of this.variables) {
                 this.variableTypes[variable.name] = mapKindToType(variable.kind);

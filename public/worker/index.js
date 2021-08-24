@@ -99,6 +99,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                 case "values": {
                     let { variable, indices } = ev.data.value;
                     let data = WorkerState.getData(variable, indices);
+                    // Note that we need to pass `data`'s ownership over as well to avoid possible copies.
                     self.postMessage({
                         key: "values",
                         value: data
@@ -108,6 +109,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                 case "variableValues": {
                     let { variable, length } = ev.data.value;
                     let data = WorkerState.getVariableData(variable, length);
+                    // Note that we need to pass `data`'s ownership over as well to avoid possible copies.
                     self.postMessage({
                         key: "variableValues",
                         value: data
@@ -116,6 +118,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                 }
             }
         } catch(ex) {
+            // Also handle errors so that the other side doesn't wait indefinitely for a response
             self.postMessage({
                 key: "error",
                 value: ex
