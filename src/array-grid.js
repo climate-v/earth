@@ -18,6 +18,10 @@ export class ArrayGrid {
     }
 
     setAt({x, y}, value) {
+        if(Number.isNaN(value)) {
+            return;
+        }
+
         const index = this.width * y + x;
         return this.grid[index] = value;
     }
