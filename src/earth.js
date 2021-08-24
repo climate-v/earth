@@ -1049,12 +1049,21 @@ function init() {
         });
     });
 
+    timeModel.listenTo(overlayModel, "change:hasTime", () => {
+        timeModel.set({ enabled: overlayModel.get("hasTime") });
+    });
+
+    heightModel.listenTo(overlayModel, "change:hasHeight", () => {
+        heightModel.set({ enabled: overlayModel.get("hasHeight") });
+    });
+
     overlayModel.listenTo(metadataAgent, "update", () => {
         overlayModel.set({ overlays: metadataAgent.value().availableOverlays });
+        overlayModel.updateOverlayTo(overlayModel.get("currentOverlay"));
     });
 
     overlayModel.listenTo(configuration, "change:overlayType", () => {
-        overlayModel.set({ currentOverlay: configuration.get("overlayType") });
+        overlayModel.updateOverlayTo(configuration.get("overlayType"));
     });
 
     configuration.listenTo(overlayModel, "change:currentOverlay", () => {

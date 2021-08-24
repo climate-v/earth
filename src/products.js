@@ -291,8 +291,8 @@ const FACTORIES = {
                         const lat = convertLatRadianArray(metadata.dimensions.latitude.values);
                         const cellCount = metadata.irregular.cellCount;
 
-                        const uGridValues = await worker.getValues(time, height, windOverlay.u.name, true);
-                        const vGridValues = await worker.getValues(time, height, windOverlay.v.name, true);
+                        const uGridValues = await worker.getValues(windOverlay.u.name, time, height, 0);
+                        const vGridValues = await worker.getValues(windOverlay.v.name, time, height, 0);
 
                         const gridDescription = getIrregularGridDescription(lat, lon);
 
@@ -326,8 +326,8 @@ const FACTORIES = {
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
                         try {
-                            uValues = await worker.getValues(time, height, windOverlay.u.name);
-                            vValues = await worker.getValues(time, height, windOverlay.v.name);
+                            uValues = await worker.getValues(windOverlay.u.name, time, height, 0, 0);
+                            vValues = await worker.getValues(windOverlay.v.name, time, height, 0, 0);
                         } catch(er) {
                             throw new Error(`Error while loading u/v values at time index '${time}' height index '${height}': ${er}`);
                         }
@@ -393,7 +393,7 @@ const FACTORIES = {
                         const tempGrid = gridDescription.createGrid();
 
                         const cellCount = metadata.irregular.cellCount;
-                        const tempValues = await worker.getValues(time, height, tempOverlay.name, true);
+                        const tempValues = await worker.getValues(tempOverlay.name, time, height, 0);
 
                         for(let i = 0; i < cellCount; i++) {
                             const latIndex = gridDescription.latToGridPos(lat[i]);
@@ -407,7 +407,7 @@ const FACTORIES = {
                         values = tempGrid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
-                        values = await worker.getValues(time, height, tempOverlay.name);
+                        values = await worker.getValues(tempOverlay.name, time, height, 0, 0);
                         header = createHeader(metadata, time);
                     }
                     let max = fastArrayMax(values);
@@ -441,16 +441,34 @@ const FACTORIES = {
             return !['off', 'temp', 'wind'].includes(attr.overlayType);
         },
         create: function(attr, metadata) {
-            const height = attr.heightIndex;
-            const time = attr.timeIndex;
-
-            if(height === -1) {
-                throw new Error(`Could not find matching index for selected height.`);
+            const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
+            const indices = [];
+            if(metadata.irregular != null) {
+                indices.push(0); // Ncells
+            } else {
+                indices.push(0); // lat
+                indices.push(0); // lon
             }
 
-            if(time === -1 || metadata.dimensions.time.size <= time) {
-                throw new Error(`Could not find matching index for time.`);
+            if(overlayDef.definedDimensions.height) {
+                if(attr.heightIndex === -1) {
+                    throw new Error(`Could not find matching index for selected height.`);
+                }
+
+                indices.unshift(attr.heightIndex);
             }
+
+            let time = 0;
+            if(overlayDef.definedDimensions.time) {
+                time = attr.timeIndex;
+                if(time === -1 || metadata.dimensions.time.size <= time) {
+                    throw new Error(`Could not find matching index for time.`);
+                }
+
+                indices.unshift(time);
+            }
+            // if the variable is not defined for the time dimension, we are currently using the time value at
+            // index 0 for other stuff that needs time, such as the header.
 
             return buildProduct({
                 field: "scalar",
@@ -460,7 +478,6 @@ const FACTORIES = {
                     qualifier: { en: " ", ja: " " }
                 }),
                 builder: async function(worker) {
-                    const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
                     const unit = overlayDef.unit;
                     let header;
                     let values;
@@ -473,7 +490,7 @@ const FACTORIES = {
                         const grid = gridDescription.createGrid();
 
                         const cellCount = metadata.irregular.cellCount;
-                        const dataValues = await worker.getValues(time, height, overlayDef.name, true);
+                        const dataValues = await worker.getValues(overlayDef.name, ...indices);
 
                         for(let i = 0; i < cellCount; i++) {
                             const latIndex = gridDescription.latToGridPos(lat[i]);
@@ -495,7 +512,7 @@ const FACTORIES = {
                         values = grid.raw;
                         header = createIrregularHeader(metadata, time, gridDescription);
                     } else {
-                        values = await worker.getValues(time, height, overlayDef.name);
+                        values = await worker.getValues(overlayDef.name, ...indices);
                         min = fastArrayMin(values);
                         max = fastArrayMax(values);
                         header = createHeader(metadata, time);

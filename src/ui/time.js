@@ -5,7 +5,8 @@ import * as _ from 'underscore';
 export const TimeModel = Backbone.Model.extend({
     defaults: {
         selected: 0,
-        values: []
+        values: [],
+        enabled: true,
     }
 });
 
@@ -50,11 +51,15 @@ export const DateView = Backbone.View.extend({
 });
 
 const DefaultTimeNavigationTemplate = `
-    <span class="text-button" id="reset-time">Reset</span>
-    <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward-more"> « </span> –
-    <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward"> ‹ </span> –
-    <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward"> › </span> –
-    <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward-more"> » </span>
+    <% if(enabled) { %>
+        <span class="text-button" id="reset-time">Reset</span>
+        <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward-more"> « </span> –
+        <span <%= (canGoBack ? 'class="text-button"' : "") %> id="nav-backward"> ‹ </span> –
+        <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward"> › </span> –
+        <span <%= (canGoForward ? 'class="text-button"' : "") %> id="nav-forward-more"> » </span>
+    <% } else { %>
+        <span> - </span>
+    <% } %>
 `;
 
 export const TimeNavigationView = Backbone.View.extend({
@@ -95,6 +100,7 @@ export const TimeNavigationView = Backbone.View.extend({
         const canGoBack = selectedIndex > 0;
         const canGoForward = selectedIndex < this.model.get("values").length - 1;
         this.$el.html(this.template({
+            enabled: this.model.get("enabled"),
             canGoBack,
             canGoForward
         }));

@@ -209,9 +209,9 @@ export function startWorker() {
         async getDimensions() {
             return this.dimensions;
         },
-        async getValues(time, height, variable, irregular = false) {
+        async getValues(variable, ...indices) {
             let values = await call(this.worker, "values", {
-                time, height, variable, irregular
+                variable, indices
             });
             const view = new DataView(values);
             return createProxyForType(view, this.variableTypes[variable]);

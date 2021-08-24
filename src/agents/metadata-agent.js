@@ -188,9 +188,10 @@ function createTempOverlay(variables) {
     }
 }
 
-function createGenericOverlay(variable, allDimensions) {
+function createGenericOverlay(variable, allDimensions, config) {
     const dimensions = variable.dimensions;
-    if(dimensions.length !== allDimensions.length || dimensions.some(dim => !allDimensions.some(dimension => dimension.name === dim))) {
+    const hasDimensionNotInList = dimensions.some(dim => !allDimensions.some(dimension => dimension.name === dim));
+    if(dimensions.length > allDimensions.length || hasDimensionNotInList) {
         return null;
     }
 
@@ -199,7 +200,11 @@ function createGenericOverlay(variable, allDimensions) {
         id: variable.name,
         unit: variable.attributes["unit"],
         displayName: variable.name,
-        name: variable.name
+        name: variable.name,
+        definedDimensions: {
+            time: dimensions.some(dim => dim === config.time.name),
+            height: dimensions.some(dim => dim === config.levitation.name),
+        }
     }
 }
 
@@ -214,13 +219,17 @@ function createGenericOverlay(variable, allDimensions) {
  *
  * @param allVariables list of all the variables from the file
  * @param dimensions the list of dimensions from the file
+ * @param config the configuration of dimensions for the system
  * @param irregularConfig optional configuration for irregular grids if the loaded file
  *          uses an irregular grid. Null otherwise.
  * @returns {*[]}
  */
-function getAvailableOverlays(allVariables, dimensions, irregularConfig) {
+function getAvailableOverlays(allVariables, dimensions, config, irregularConfig) {
     const dims = (irregularConfig != null ? irregularConfig.dimensions : dimensions);
-    const variables = allVariables.filter(variable => !dims.some(dimension => dimension.name === variable.name));
+    const reservedVariables = [config.levitation.name, config.longitude.name, config.latitude.name, config.time.name];
+    const variables = allVariables
+        .filter(variable => !reservedVariables.includes(variable.name))
+        .filter(variable => !dims.some(dimension => dimension.name === variable.name));
     const overlays = [];
     SPECIAL_OVERLAYS.forEach(overlay => {
         const overlayConfig = OVERLAY_FACTORIES[overlay](variables);
@@ -229,8 +238,8 @@ function getAvailableOverlays(allVariables, dimensions, irregularConfig) {
         }
     });
 
-    variables.filter(variable => variableHasCorrectDimensions(variable, dims)).forEach(variable => {
-        let overlay = createGenericOverlay(variable, dims);
+    variables.forEach(variable => {
+        let overlay = createGenericOverlay(variable, dims, config);
         if(overlay != null) {
             overlays.push(overlay);
         }
@@ -317,7 +326,7 @@ export async function buildMetadata(worker) {
         }
     }
 
-    const availableOverlays = getAvailableOverlays(variables, dimensions, irregular);
+    const availableOverlays = getAvailableOverlays(variables, dimensions, config, irregular);
 
     const timeValues = await getVariableValues(worker, config.time);
     const elevationLevels = await getVariableValues(worker, config.levitation);

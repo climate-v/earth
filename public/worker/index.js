@@ -43,26 +43,14 @@ const WorkerState = {
     getDimensions() {
         return this.file.get_dimensions();
     },
-    getData(time, height, variable, irregular) {
+    getData(variable, indices) {
         const variableSize = this.file.get_variable_size(variable);
         if(variableSize === 0) {
             throw "Variable size is 0, not sure what to do";
         }
         const buffer = new ArrayBuffer(this.mapSize * variableSize);
         const uint8View = new Uint8Array(buffer);
-        let indexArray;
-        if(irregular) {
-            indexArray = new Uint32Array(3);
-            indexArray[0] = time;
-            indexArray[1] = height;
-            indexArray[2] = 0;
-        } else {
-            indexArray = new Uint32Array(4);
-            indexArray[0] = time;
-            indexArray[1] = height;
-            indexArray[2] = 0;
-            indexArray[3] = 0;
-        }
+        const indexArray = new Uint32Array(indices);
         this.file.load_data_for(variable, indexArray, uint8View);
         return buffer;
     },
@@ -109,8 +97,8 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                     self.postMessage({ key: "dimensions", value: WorkerState.getDimensions() });
                     break;
                 case "values": {
-                    let { height, time, variable, irregular } = ev.data.value;
-                    let data = WorkerState.getData(time, height, variable, irregular);
+                    let { variable, indices } = ev.data.value;
+                    let data = WorkerState.getData(variable, indices);
                     self.postMessage({
                         key: "values",
                         value: data

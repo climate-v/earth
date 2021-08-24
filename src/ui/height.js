@@ -34,7 +34,7 @@ export const HeightView = Backbone.View.extend({
     render() {
         const values = this.model.get("values");
         const direction = this.model.get("direction");
-        if(values.length === 0) {
+        if(values.length === 0 || !this.model.get("enabled")) {
             this.$el.html(this.template(this.model.attributes));
         } else if(shouldRenderDistinct(this.model)) {
             this.$el.html(this.distinctTemplate(this.model.attributes));
@@ -68,6 +68,7 @@ export const HeightModel = Backbone.Model.extend({
     defaults: {
         selected: 0,
         unit: 'hPa',
-        values: []
+        values: [],
+        enabled: true
     }
 });
