@@ -1,3 +1,9 @@
+let callId = 0;
+function getNextCallId() {
+    callId = (callId + 1) % 1000;
+    return callId;
+}
+
 /**
  * Calls the worker and returns a promise that resolves with the response from the worker
  *
@@ -7,19 +13,22 @@
  * @returns {Promise<any>} The promise which resolves with the response
  */
 function call(worker, key, value) {
+    const id = getNextCallId();
     return new Promise((resolve, reject) => {
         worker.addEventListener("message", function caller(ev) {
-            if(ev.data.key === "error") {
-                reject(ev.data.value);
+            if(ev.data.id === id) {
                 worker.removeEventListener("message", caller);
-            } else if(ev.data.key === key) {
-                worker.removeEventListener("message", caller);
-                resolve(ev.data.value);
+                if(ev.data.key === "error") {
+                    reject(ev.data.value);
+                } else if(ev.data.key === key) {
+                    resolve(ev.data.value);
+                }
             }
         });
 
         worker.postMessage({
             key,
+            id,
             value
         });
     });
@@ -228,11 +237,14 @@ export function startWorker() {
             return this.dimensions;
         },
         async getValues(variable, ...indices) {
+            console.log(`Requesting for variable ${variable}...`);
             let values = await call(this.worker, "values", {
                 variable, indices
             });
             const view = new DataView(values);
-            return createProxyForType(view, this.variableTypes[variable]);
+            const proxy = createProxyForType(view, this.variableTypes[variable]);
+            console.log(`For variable ${variable} got length ${proxy.length}`);
+            return proxy;
         },
         async getAttribute(attribute) {
             return await call(this.worker, "attribute", attribute);

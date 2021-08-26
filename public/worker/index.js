@@ -76,25 +76,26 @@ const WorkerState = {
 wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
     console.log("Worker started.");
     self.onmessage = (ev) => {
+        const id = ev.data.id;
         try {
             switch(ev.data.key) {
                 case "load":
                     let fileResult = WorkerState.loadFile(ev.data.value);
-                    self.postMessage({ key: "load", value: fileResult });
+                    self.postMessage({ key: "load", id, value: fileResult });
                     break;
                 case "loadRemote":
                     let remoteResult = WorkerState.loadRemote(ev.data.value);
-                    self.postMessage({ key: "loadRemote", value: remoteResult });
+                    self.postMessage({ key: "loadRemote", id, value: remoteResult });
                     break;
                 case "attribute":
                     let attr = WorkerState.getAttribute(ev.data.value);
-                    self.postMessage({ key: "attribute", value: attr });
+                    self.postMessage({ key: "attribute", id, value: attr });
                     break;
                 case "variables":
-                    self.postMessage({ key: "variables", value: WorkerState.getVariables() });
+                    self.postMessage({ key: "variables", id, value: WorkerState.getVariables() });
                     break;
                 case "dimensions":
-                    self.postMessage({ key: "dimensions", value: WorkerState.getDimensions() });
+                    self.postMessage({ key: "dimensions", id, value: WorkerState.getDimensions() });
                     break;
                 case "values": {
                     let { variable, indices } = ev.data.value;
@@ -102,6 +103,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                     // Note that we need to pass `data`'s ownership over as well to avoid possible copies.
                     self.postMessage({
                         key: "values",
+                        id,
                         value: data
                     }, [data]);
                     break;
@@ -112,6 +114,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
                     // Note that we need to pass `data`'s ownership over as well to avoid possible copies.
                     self.postMessage({
                         key: "variableValues",
+                        id,
                         value: data
                     }, [data]);
                     break;
@@ -121,6 +124,7 @@ wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
             // Also handle errors so that the other side doesn't wait indefinitely for a response
             self.postMessage({
                 key: "error",
+                id,
                 value: ex
             });
         }
