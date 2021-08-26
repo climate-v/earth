@@ -11,8 +11,11 @@ A customized instance of "earth" is available at http://earth.nullschool.net.
 [Tokyo Wind Map](https://github.com/cambecc/air) project.  Feedback and contributions are welcome! ...especially
 those that clarify accepted best practices.
 
-building and launching
+Building and launching
 ----------------------
+
+Before continuing, please make sure that you've built the `visualize` project that contains the WASM output.
+The instructions should be under `../visualize`.
 
 After installing node.js and npm, clone "earth" and install dependencies:
 
