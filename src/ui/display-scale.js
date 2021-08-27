@@ -8,9 +8,9 @@ const TEMPLATE = `
     <div id="scale-label">Scale</div>
     <div class="multi-row-column">
         <div class="menu-content-row">
-            <input id="bounds-min" type="number" class="menu-input" title="Bounds Minimum" value="<%= scaleBounds != null ? scaleBounds[0].toFixed(3) : '' %>" />
+            <input id="bounds-min" type="number" class="menu-input" title="Bounds Minimum" value="<%= scaleBounds != null ? scaleBounds[0] : '' %>" />
             <span style="padding-left: 5px; padding-right: 5px">-</span>
-            <input id="bounds-max" type="number" class="menu-input" title="Bounds Maximum" value="<%= scaleBounds != null ? scaleBounds[1].toFixed(3) : '' %>" />
+            <input id="bounds-max" type="number" class="menu-input" title="Bounds Maximum" value="<%= scaleBounds != null ? scaleBounds[1] : '' %>" />
             <span style="padding-left: 10px; padding-right: 10px">|</span>
             <span id="select-linear" class="<%= (scaleType == 'linear' || scaleType == null ? '' : 'text-button') %>">Linear</span> - 
             <span id="select-log" class="<%= (scaleType === 'logarithmic' ? '' : 'text-button') %>">Log</span>
@@ -127,10 +127,26 @@ export const ScaleConfigurationView = Backbone.View.extend({
             }
         }
     },
+    toBoundaryDisplay(value) {
+        if(value < 0.001) {
+            return value.toExponential(3);
+        } else {
+            return value.toFixed(3);
+        }
+    },
     render() {
+        let bounds = this.model.get("scaleBounds");
+        if(bounds != null) {
+            bounds = [
+                this.toBoundaryDisplay(bounds[0]),
+                this.toBoundaryDisplay(bounds[1])
+            ];
+        }
+
         this.$el.html(this.template({
             scales: COLORSCALES,
-            ...this.model.attributes
+            ...this.model.attributes,
+            scaleBounds: bounds,
         }));
 
         const colorBar = this.$("#scale")[0];
