@@ -198,7 +198,7 @@ function createGenericOverlay(variable, allDimensions, config) {
     return {
         type: "generic",
         id: variable.name,
-        unit: variable.attributes["unit"],
+        unit: variable.attributes["units"],
         displayName: variable.name,
         name: variable.name,
         definedDimensions: {
