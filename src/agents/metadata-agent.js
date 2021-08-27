@@ -238,12 +238,15 @@ function getAvailableOverlays(allVariables, dimensions, config, irregularConfig)
         }
     });
 
-    variables.forEach(variable => {
-        let overlay = createGenericOverlay(variable, dims, config);
-        if(overlay != null) {
-            overlays.push(overlay);
-        }
+    const customOverlays = variables
+        .map(variable => createGenericOverlay(variable, dims, config))
+        .filter(overlay => overlay != null);
+
+    customOverlays.sort((first, second) => {
+        return first.name.localeCompare(second.name);
     });
+
+    overlays.push(...customOverlays);
 
     console.log("Fond overlays", overlays);
 
