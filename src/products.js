@@ -13,14 +13,6 @@ import { floatToDate } from "./date";
 import { degreeToIndexWithStepCount, floorMod, radiansToDegrees } from "./math";
 import µ from './micro';
 
-// const WEATHER_PATH = "/data/weather";
-// const OSCAR_PATH = "/data/oscar";
-// var catalogs = {
-//     // The OSCAR catalog is an array of file names, sorted and prefixed with yyyyMMdd. Last item is the
-//     // most recent. For example: [ 20140101-abc.json, 20140106-abc.json, 20140112-abc.json, ... ]
-//     oscar: µ.loadJson([OSCAR_PATH, "catalog.json"].join("/"))
-// };
-
 function buildProduct(overrides) {
     return _.extend({
         description: "",
@@ -31,34 +23,6 @@ function buildProduct(overrides) {
     }, overrides);
 }
 
-// function ncPath(name) {
-//     return [WEATHER_PATH, 'current', name + ".nc"].join("/");
-// }
-
-// /**
-//  * Returns a date for the chronologically next or previous GFS data layer. How far forward or backward in time
-//  * to jump is determined by the step. Steps of ±1 move in 3-hour jumps, and steps of ±10 move in 24-hour jumps.
-//  */
-// function gfsStep(date, step) {
-//     var offset = (step > 1 ? 8 : step < -1 ? -8 : step) * 3, adjusted = new Date(date);
-//     adjusted.setHours(adjusted.getHours() + offset);
-//     return adjusted;
-// }
-
-// function netcdfHeader(time, lat, lon, center) {
-//     return {
-//         lo1: lon.sequence.start,
-//         la1: lat.sequence.start,
-//         dx: lon.sequence.delta,
-//         dy: -lat.sequence.delta,
-//         nx: lon.sequence.size,
-//         ny: lat.sequence.size,
-//         refTime: time.data[0],
-//         forecastTime: 0,
-//         centerName: center
-//     };
-// }
-//
 function describeSurface(attr, metadata) {
     const heightValue = metadata.dimensions.levitation.values[attr.heightIndex];
     return heightValue + " " + metadata.dimensions.levitation.unit;
@@ -257,6 +221,14 @@ function averageGrid(grid) {
     }
 }
 
+/**
+ * Factories for creating overlays for the given type. This currently includes `wind`, `temp`, `generic`
+ * and `off`. All variables are generally displayed using `generic` as we do not really know what will
+ * be inside them, but we have special cases for wind, because it's made up of two variables, and
+ * temperature, so we can provide good unit conversions. These factories also contain a matching clause
+ * which checks if they should be selected given the current configuration, which includes the selected
+ * overlay, overlay types, projection, etc.
+ */
 const FACTORIES = {
     "wind": {
         matches({ availableOverlays }) {
@@ -844,53 +816,6 @@ const FACTORIES = {
         }
     }
 };
-
-// /**
-//  * Returns the file name for the most recent OSCAR data layer to the specified date. If offset is non-zero,
-//  * the file name that many entries from the most recent is returned.
-//  *
-//  * The result is undefined if there is no entry for the specified date and offset can be found.
-//  *
-//  * UNDONE: the catalog object itself should encapsulate this logic. GFS can also be a "virtual" catalog, and
-//  *         provide a mechanism for eliminating the need for /data/weather/current/* files.
-//  *
-//  * @param {Array} catalog array of file names, sorted and prefixed with yyyyMMdd. Last item is most recent.
-//  * @param {String} date string with format yyyy/MM/dd or "current"
-//  * @param {Number?} offset
-//  * @returns {String} file name
-//  */
-// function lookupOscar(catalog, date, offset) {
-//     offset = +offset || 0;
-//     if (date === "current") {
-//         return catalog[catalog.length - 1 + offset];
-//     }
-//     var prefix = ymdRedelimit(date, "/", ""), i = _.sortedIndex(catalog, prefix);
-//     i = (catalog[i] || "").indexOf(prefix) === 0 ? i : i - 1;
-//     return catalog[i + offset];
-// }
-//
-// function oscar0p33Path(catalog, attr) {
-//     var file = lookupOscar(catalog, attr.date);
-//     return file ? [OSCAR_PATH, file].join("/") : null;
-// }
-//
-// function oscarDate(catalog, attr) {
-//     var file = lookupOscar(catalog, attr.date);
-//     var parts = file ? ymdRedelimit(file, "", "/").split("/") : null;
-//     return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
-// }
-//
-// /**
-//  * @returns {Date} the chronologically next or previous OSCAR data layer. How far forward or backward in
-//  * time to jump is determined by the step and the catalog of available layers. A step of ±1 moves to the
-//  * next/previous entry in the catalog (about 5 days), and a step of ±10 moves to the entry six positions away
-//  * (about 30 days).
-//  */
-// function oscarStep(catalog, date, step) {
-//     var file = lookupOscar(catalog, dateToUTCymd(date, "/"), step > 1 ? 6 : step < -1 ? -6 : step);
-//     var parts = file ? ymdRedelimit(file, "", "/").split("/") : null;
-//     return parts ? new Date(Date.UTC(+parts[0], parts[1] - 1, +parts[2], 0)) : null;
-// }
 
 function bilinearInterpolateScalar(x, y, g00, g10, g01, g11) {
     var rx = (1 - x);

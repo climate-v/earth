@@ -29,4 +29,9 @@ export async function downloadFile(worker, filename) {
     };
 }
 
+/**
+ * The file agent manages loading/keeping references to the currently selected file.
+ * It also keeps reference of where the file came from, i.e. is it a local file or
+ * a remote file via http.
+ */
 export default newLoggedAgent();

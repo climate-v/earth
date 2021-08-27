@@ -49,6 +49,8 @@ const WorkerState = {
             throw "Variable size is 0, not sure what to do";
         }
         const buffer = new ArrayBuffer(this.mapSize * variableSize);
+        // We need to wrap the buffer in a u8 array because that's what rust
+        // expects the type of the passed array to be
         const uint8View = new Uint8Array(buffer);
         const indexArray = new Uint32Array(indices);
         this.file.load_data_for(variable, indexArray, uint8View);
@@ -59,6 +61,8 @@ const WorkerState = {
         if(variableSize === 0) {
             throw "Variable size is 0, not sure what to do";
         }
+        // We need to wrap the buffer in a u8 array because that's what rust
+        // expects the type of the passed array to be
         const buffer = new ArrayBuffer(length * variableSize);
         const uint8View = new Uint8Array(buffer);
         const indexArray = new Uint32Array(1);
@@ -74,7 +78,7 @@ const WorkerState = {
 
 // Make sure we first load the wasm before we accept requests
 wasm_bindgen("/pkg/visualize_bg.wasm").then(() => {
-    console.log("Worker started.");
+    console.log("Worker started."); // In some browsers, the worker log gets posted twice - no reason to be alarmed.
     self.onmessage = (ev) => {
         const id = ev.data.id;
         try {

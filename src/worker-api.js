@@ -6,6 +6,7 @@ function getNextCallId() {
 
 /**
  * Calls the worker and returns a promise that resolves with the response from the worker
+ * or is rejected, if the worker experienced an error.
  *
  * @param worker The worker to send the data to
  * @param key The key of the request
@@ -13,6 +14,8 @@ function getNextCallId() {
  * @returns {Promise<any>} The promise which resolves with the response
  */
 function call(worker, key, value) {
+    // Create unique id (for the short while we're working with) to identify the response
+    // for this request and not get mixed in with another that's happening at the same time.
     const id = getNextCallId();
     return new Promise((resolve, reject) => {
         worker.addEventListener("message", function caller(ev) {

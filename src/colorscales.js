@@ -124,17 +124,24 @@ export function colorAccordingToScale(name, value, alpha) {
  * List of color scales available in the application.
  * Each object in this list represents a color scale with a `name` and
  * `scale`, describing its name and a color conversion function respectively.
- * 
+ *
  * The `scale` function converts a given value and alpha to the corresponding
- * color in this scale. The value will always be between 0.0 and 1.0. How 
- * exactly a value is mapped to a color can be anything, but there's a wrapper
- * function `segmentedColorScale` that allows providing a few colors at 
- * specific values and it will interpolate between them to create a continuous
- * scale.
- * 
+ * color in this scale (`(value, alpha) -> [r, g, b, a]`). The value will
+ * always be between 0.0 and 1.0. How exactly a value is mapped to a color can
+ * be anything, but there's a wrapper function `segmentedColorScale` that
+ * allows providing a few colors at specific values and it will interpolate
+ * between them to create a continuous scale.
+ *
  * A new scale can simply be added by creating a new object in the list with
- * those properties. It will then also be picked up by the UI for users to 
- * select.
+ * those properties. It will then also be picked up by the UI for users to
+ * select. An example could look like
+ * {
+ *      name: "blackwhite",
+ *      scale: segmentedColorScale([
+ *          [0, hexToRGB("#00000")],
+ *          [1, hexToRGB("#FFFFFF")]
+ *      ]);
+ * }
  */
 export const COLORSCALES = [
     {
