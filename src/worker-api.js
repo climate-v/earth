@@ -240,14 +240,11 @@ export function startWorker() {
             return this.dimensions;
         },
         async getValues(variable, ...indices) {
-            console.log(`Requesting for variable ${variable}...`);
             let values = await call(this.worker, "values", {
                 variable, indices
             });
             const view = new DataView(values);
-            const proxy = createProxyForType(view, this.variableTypes[variable]);
-            console.log(`For variable ${variable} got length ${proxy.length}`);
-            return proxy;
+            return createProxyForType(view, this.variableTypes[variable]);
         },
         async getAttribute(attribute) {
             return await call(this.worker, "attribute", attribute);

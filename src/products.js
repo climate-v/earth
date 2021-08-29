@@ -448,11 +448,6 @@ const FACTORIES = {
                     let max = fastArrayMax(values);
                     let min = fastArrayMin(values);
 
-                    console.log({
-                        min,
-                        max
-                    });
-
                     return {
                         header,
                         interpolate: bilinearInterpolateScalar,
