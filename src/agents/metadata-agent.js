@@ -229,7 +229,9 @@ function getAvailableOverlays(allVariables, dimensions, config, irregularConfig)
     const reservedVariables = [config.levitation.name, config.longitude.name, config.latitude.name, config.time.name];
     const variables = allVariables
         .filter(variable => !reservedVariables.includes(variable.name))
-        .filter(variable => !dims.some(dimension => dimension.name === variable.name));
+        .filter(variable => !dims.some(dimension => dimension.name === variable.name))
+        .filter(variable => !variable.name.endsWith("_bnds"));
+
     const overlays = [];
     SPECIAL_OVERLAYS.forEach(overlay => {
         const overlayConfig = OVERLAY_FACTORIES[overlay](variables);
