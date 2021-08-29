@@ -206,6 +206,12 @@ function newGlobe(source, view) {
 }
 
 // ============================================================================================
+// Factories for specific projections
+// A factory generate creates a new globe (`newGlobe`) which effectively creating a standard
+// globe and overwriting specific properties with the ones given. In general this is the geo
+// projection itself, which applies the distortion of the values and locations.
+// It may also overwrite the `defineMap` function to customize how the SVG of the earth will
+// be rendered with this projection and others.
 
 function atlantis() {
     return newGlobe({
@@ -343,6 +349,8 @@ function winkel3() {
     });
 }
 
+// When adding a new projection here, make sure to add a corresponding entry in the projection
+// section in the `index.html` to actually make it clickable
 export default new Map([
     ['atlantis', atlantis],
     ['azimuthal_equidistant', azimuthalEquidistant],

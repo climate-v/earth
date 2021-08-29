@@ -29,6 +29,18 @@ const TEMPLATE = `
 </div>
 `;
 
+/**
+ * Find the matching scale for the given name.
+ *
+ * `"linear"` scale is a normal infinite linear scale
+ * `"logarithmic"` scale depends on the minimum bound:
+ *     - smaller 0.00001 gets the symlog scale
+ *     - anything else a logarithmic scale with base 10
+ *
+ * @param name The name of the scale
+ * @param bounds The upper and lower bounds for possible values
+ * @returns Scale The scale function
+ */
 function scaleFuncFor(name, bounds) {
     let lowerBound = (bounds || [0, 0])[0];
     switch(name) {
@@ -81,6 +93,8 @@ export const ScaleConfigurationView = Backbone.View.extend({
     updateBoundsMin(ev) {
         const currentBounds = this.model.get("scaleBounds");
         const input = parseFloat(ev.target.value);
+        // Parsing of float values returns NaN instead of null/error
+        // so we have to check for that instead
         if(Number.isNaN(input)) {
             this.$('#bounds-min').addClass("error");
         } else {
@@ -92,6 +106,8 @@ export const ScaleConfigurationView = Backbone.View.extend({
     updateBoundsMax(ev) {
         const currentBounds = this.model.get("scaleBounds");
         const input = parseFloat(ev.target.value);
+        // Parsing of float values returns NaN instead of null/error
+        // so we have to check for that instead
         if(Number.isNaN(input)) {
             this.$('#bounds-max').addClass("error");
         } else {
@@ -120,6 +136,8 @@ export const ScaleConfigurationView = Backbone.View.extend({
         if(visualizationBounds == null) {
             this.model.set({scaleBounds: null});
         } else {
+            // When our new scale bounds are _really_ small, make sure we also update the scale
+            // because for small values it would pick a symlog scale now and not a normal log scale.
             if(visualizationBounds[0] < 0.000001 && this.currentScale() === "logarithmic") {
                 this.model.set({ scaleBounds: visualizationBounds, scaleFunc: scaleFuncFor("logarithmic", visualizationBounds) });
             } else {
@@ -153,6 +171,8 @@ export const ScaleConfigurationView = Backbone.View.extend({
         colorBar.height = colorBar.clientHeight;
         colorBar.width = colorBar.clientWidth;
         const g = colorBar.getContext("2d");
+        // Convert position inside color bar to value between 0 and 1 which can then
+        // be turned into a color from the color scale
         const colorBarRange = d3.scaleLinear().domain([0, colorBar.width]);
         this.data.colorBarScale = colorBarRange;
         for(let i = 0; i <= colorBar.width; i++) {

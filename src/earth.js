@@ -830,6 +830,15 @@ function isUrl(string) {
     }
 }
 
+/**
+ * Collects all the files that have been detected in the drop event, including
+ * URLs (which may lead to a file).
+ *
+ * @param dropEvent The event to get the files from
+ * @returns {Promise<[File|URL]>} A promise which resolves with the file and url list
+ */
+// Note: we have to make this async unfortunately, because it is not certain if the
+// callback for `getAsString` for the URLs will be executed sync or async.
 function collectAllFilesFromDrop(dropEvent) {
     const allFiles = [];
 
@@ -898,6 +907,8 @@ function init() {
             if(typeof file === 'string') {
                 configuration.save({ file });
             } else {
+                // Only accept `nc`/NetCDF files for now. This should be moved to the
+                // head-scratcher once it can return a representative error.
                 if(!file.name.endsWith(".nc")) {
                     report.error("Did not detect a NetCDF file.");
                     return;

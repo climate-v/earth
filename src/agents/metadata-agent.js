@@ -307,6 +307,7 @@ export async function buildMetadata(worker) {
 
     const dimensionVariables =  variables.filter(variable => dimensions.some(dimension => dimension.name === variable.name));
 
+    // Figure out which dimension represents which concept
     const config = {
         levitation: findLevitationDimension(dimensionVariables),
         latitude: findLatDimension(dimensionVariables),
@@ -314,10 +315,13 @@ export async function buildMetadata(worker) {
         time: findTimeDimension(dimensionVariables)
     };
 
+    // Check if we have an irregular grid
     if(config.latitude == null && config.longitude == null && dimensions.some(dim => dim.name === 'ncells')) {
+        // if we do, we need different lat/lon dimensions, which are often not inside the variable list
         config.longitude = findCLonDimension(variables);
         config.latitude = findCLatDimension(variables);
         let cellDimension = dimensions.find(dimension => dimension.name === 'ncells');
+        // Specifically create an irregular config to make it distinguishable
         irregular = {
             cellDimension: cellDimension.name,
             cellCount: cellDimension.length,
@@ -325,6 +329,7 @@ export async function buildMetadata(worker) {
         };
     }
 
+    // Check if all of the dimensions we wanted to define are actually defined
     for(let key in config) {
         if(config[key] == null) {
             throw new Error("Could not determine variable for " + key);
@@ -333,14 +338,24 @@ export async function buildMetadata(worker) {
 
     const availableOverlays = getAvailableOverlays(variables, dimensions, config, irregular);
 
+    // Load & store the values for time and elevation since we will need it in the UI anyway
     const timeValues = await getVariableValues(worker, config.time);
     const elevationLevels = await getVariableValues(worker, config.levitation);
+    // To figure out, which direction the levitation dimensions goes, e.g. first index is
+    // surface of earth and last index is top of the atmosphere, we check if there positive
+    // attribute is set
     let inverted = config.levitation.attributes["positive"] === "down";
+    // and with that figure out, with the values, how they're sorted
     const elevationDirection = getDimensionDirection(elevationLevels, inverted);
+    // This direction helps us have a consistent UI
 
+    // Cache lat/lon values to make it easier working with an irregular grid as we need
+    // them there to setup our grid
     const longitudeValues = await getVariableValues(worker, config.longitude);
     const latitudeValues = await getVariableValues(worker, config.latitude);
 
+    // Create an easily accessible object of all the metadata we have, specifically the dimensions
+    // and their properties.
     return {
         centerName,
         availableOverlays,
@@ -364,6 +379,9 @@ export async function buildMetadata(worker) {
                 size: latitudeValues.length,
                 unit: config.latitude.attributes["units"],
                 values: latitudeValues,
+                // Range helps us figure out the size of our grid
+                // which does not work for an irregular grid, as the values can be all over the place
+                // and the index says nothing about where the location is
                 range: (irregular ? [] : [latitudeValues[0], latitudeValues[latitudeValues.length - 1]])
             },
             longitude: {
@@ -371,6 +389,7 @@ export async function buildMetadata(worker) {
                 size: longitudeValues.length,
                 unit: config.longitude.attributes["units"],
                 values: longitudeValues,
+                // Range helps us figure out the size of our grid, see above
                 range: (irregular ? [] : [longitudeValues[0], longitudeValues[longitudeValues.length - 1]])
             }
         }
