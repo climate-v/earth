@@ -1,15 +1,13 @@
 earth
 =====
 
-**NOTE: the location of `dev-server.js` has changed from `{repository}/server/` to `{repository}/`**
+"earth" is a project to visualize netcdf data files.
 
-"earth" is a project to visualize global weather conditions.
+An instance of "earth" is available at [https://datasets.earth](https://datasets.earth).
 
-A customized instance of "earth" is available at http://earth.nullschool.net.
-
-"earth" is a personal project I've used to learn javascript and browser programming, and is based on the earlier
-[Tokyo Wind Map](https://github.com/cambecc/air) project.  Feedback and contributions are welcome! ...especially
-those that clarify accepted best practices.
+This project is a based on the original software ["earth"](https://github.com/cambecc/earth) made by Cameron Beccario. It has 
+been extended to handle netcdf files provided by users directly in the browser without any preparation and served directly 
+from the user.
 
 Building and launching
 ----------------------
@@ -17,9 +15,8 @@ Building and launching
 Before continuing, please make sure that you've built the `visualize` project that contains the WASM output.
 The instructions should be under `../visualize`.
 
-After installing node.js and npm, clone "earth" and install dependencies:
+After installing node.js and npm, install the dependencies:
 
-    git clone https://github.com/cambecc/earth
     cd earth
     npm install
 
@@ -31,10 +28,7 @@ Finally, point your browser to:
 
     http://localhost:3000
 
-The server acts as a stand-in for static S3 bucket hosting and so contains almost no server-side logic. It
-serves all files located in the `earth/public` directory. See `index.html` and `public/libs/earth/*.js`
-for the main entry points. Data files are located in the `public/data` directory, and there is one sample
-weather layer located at `data/weather/current`.
+It serves all files located in the `earth/public` directory. See `index.html` and `src/earth.js` for the main entry points.
 
 For deployment, run:
 
@@ -43,46 +37,6 @@ For deployment, run:
 This will create a `dist` folder will all the static files necessary. These can then be served via nginx or other means.
 
 *For Ubuntu, Mint, and elementary OS, use `nodejs` instead of `node` instead due to a [naming conflict](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager#ubuntu-mint-elementary-os).
-
-getting map data
-----------------
-
-Map data is provided by [Natural Earth](http://www.naturalearthdata.com) but must be converted to
-[TopoJSON](https://github.com/mbostock/topojson/wiki) format. We make use of a couple different map scales: a
-simplified, larger scale for animation and a more detailed, smaller scale for static display. After installing
-[GDAL](http://www.gdal.org/) and TopoJSON (see [here](http://bost.ocks.org/mike/map/#installing-tools)), the
-following commands build these files:
-
-    curl "http://www.nacis.org/naturalearth/50m/physical/ne_50m_coastline.zip" -o ne_50m_coastline.zip
-    curl "http://www.nacis.org/naturalearth/50m/physical/ne_50m_lakes.zip" -o ne_50m_lakes.zip
-    curl "http://www.nacis.org/naturalearth/110m/physical/ne_110m_coastline.zip" -o ne_110m_coastline.zip
-    curl "http://www.nacis.org/naturalearth/110m/physical/ne_110m_lakes.zip" -o ne_110m_lakes.zip
-    unzip -o ne_\*.zip
-    ogr2ogr -f GeoJSON coastline_50m.json ne_50m_coastline.shp
-    ogr2ogr -f GeoJSON coastline_110m.json ne_110m_coastline.shp
-    ogr2ogr -f GeoJSON -where "scalerank < 4" lakes_50m.json ne_50m_lakes.shp
-    ogr2ogr -f GeoJSON -where "scalerank < 2 AND admin='admin-0'" lakes_110m.json ne_110m_lakes.shp
-    ogr2ogr -f GeoJSON -simplify 1 coastline_tiny.json ne_110m_coastline.shp
-    ogr2ogr -f GeoJSON -simplify 1 -where "scalerank < 2 AND admin='admin-0'" lakes_tiny.json ne_110m_lakes.shp
-    topojson -o earth-topo.json coastline_50m.json coastline_110m.json lakes_50m.json lakes_110m.json
-    topojson -o earth-topo-mobile.json coastline_110m.json coastline_tiny.json lakes_110m.json lakes_tiny.json
-    cp earth-topo*.json <earth-git-repository>/public/data/
-
-getting weather data
---------------------
-
-Weather data is produced by the [Global Forecast System](http://en.wikipedia.org/wiki/Global_Forecast_System) (GFS),
-operated by the US National Weather Service. Forecasts are produced four times daily and made available for
-download from [NOMADS](http://nomads.ncep.noaa.gov/). The files are in [GRIB2](http://en.wikipedia.org/wiki/GRIB)
-format and contain over [300 records](http://www.nco.ncep.noaa.gov/pmb/products/gfs/gfs.t00z.pgrbf00.grib2.shtml).
-We need only a few of these records to visualize wind data at a particular isobar. The following commands download
-the 1000 hPa wind vectors and convert them to JSON format using the [grib2json](https://github.com/cambecc/grib2json)
-utility:
-
-    YYYYMMDD=<a date, for example: 20140101>
-    curl "http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs.pl?file=gfs.t00z.pgrb2.1p00.f000&lev_10_m_above_ground=on&var_UGRD=on&var_VGRD=on&dir=%2Fgfs.${YYYYMMDD}00" -o gfs.t00z.pgrb2.1p00.f000
-    grib2json -d -n -o current-wind-surface-level-gfs-1.0.json gfs.t00z.pgrb2.1p00.f000
-    cp current-wind-surface-level-gfs-1.0.json <earth-git-repository>/public/data/weather/current
 
 font subsetting
 ---------------
