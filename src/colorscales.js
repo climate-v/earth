@@ -1,3 +1,11 @@
+/*
+ * colorscales - managing colors and their display
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
 import { proportion } from "./math";
 
 const BOUNDARY = 0.45;

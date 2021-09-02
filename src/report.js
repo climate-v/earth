@@ -1,3 +1,11 @@
+/*
+ * report - functionality for reporting messages to the user
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
 import * as d3 from "d3";
 import log from "./log";
 

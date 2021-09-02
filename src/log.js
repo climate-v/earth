@@ -1,4 +1,11 @@
-
+/*
+ * log - feature detection for console logging
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
 function format(o) {
     return o && o.stack ? o + "\n" + o.stack : o;
 }

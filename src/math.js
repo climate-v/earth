@@ -1,3 +1,12 @@
+/*
+ * math - collection of mathematical functions
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
+
 /**
  * @returns {Number} returns remainder of floored division, i.e., floor(a / n). Useful for consistent modulo
  *          of negative numbers. See http://en.wikipedia.org/wiki/Modulo_operation.

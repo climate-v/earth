@@ -1,3 +1,11 @@
+/*
+ * agents - base agent structure managing state
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
 import report from "../report";
 import Backbone from 'backbone';
 import * as _ from 'underscore';

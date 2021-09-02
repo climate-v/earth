@@ -1,3 +1,11 @@
+/*
+ * date - functionality for converting dates
+ *
+ * Copyright (c) 2014 Cameron Beccario
+ * The MIT License - http://opensource.org/licenses/MIT
+ *
+ * https://github.com/cambecc/earth
+ */
 import micro from './micro';
 
 const DAY_IN_SECONDS = 24 * 60 * 60;
