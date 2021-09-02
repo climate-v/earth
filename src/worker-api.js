@@ -6,8 +6,13 @@ function getNextCallId() {
 
 /**
  * Calls the worker and returns a promise that resolves with the response from the worker
- * or is rejected, if the worker experienced an error.
+ * or is rejected, if the worker experienced an error. Each messages to the worker is an
+ * object containing three keys: `id`, `key`, and `value`. `id` is an identifier to
+ * differentiate the message from others and should thus be unique for a period of time.
+ * `key` is the type of operation that the worker should execute and the data provided in
+ * `value`. This is then sent to the worker using `Worker.postMessage()`.
  *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage
  * @param worker The worker to send the data to
  * @param key The key of the request
  * @param value The value to send with the request (may be null)
@@ -107,7 +112,8 @@ function createProxyForType(view, type) {
  * a (more or less) typed array. This is useful for cases when you just want to work on an array but
  * can't because the underlying data is big endian and not little endian. `UIn32Array` and similar
  * can wrap such a buffer, but only work with little endian value notation and cannot be configured
- * otherwise.
+ * otherwise. Thus this creates a proxy that emulates array-like functionality invoking the provided
+ * accessor when data needs to be loaded.
  *
  * The proxy only emulates a few select things, these include:
  *  - length
@@ -116,6 +122,8 @@ function createProxyForType(view, type) {
  *  - toString
  *  - for ... of
  *  - [] accessing with number index
+ *
+ * Anything the proxy does not implement will result in an `undefined` value.
  *
  * @param view The underlying data view with access to the bytes
  * @param dataSize The size of the bytes per element
@@ -204,6 +212,12 @@ export function startWorker() {
         variableTypes: {},
         variables: [],
         dimensions: [],
+        /**
+         * Load a file from the users computer.
+         *
+         * @param file the file to load
+         * @returns {Promise<null>} resulting promise
+         */
         async load(file) {
             const result = await call(this.worker, "load", file);
             if(result != null) {
@@ -213,6 +227,12 @@ export function startWorker() {
                 return null;
             }
         },
+        /**
+         * Load a file from a given URL
+         *
+         * @param url the url to the file to load
+         * @returns {Promise<null>} resulting promise
+         */
         async loadRemote(url) {
             const result = await call(this.worker, "loadRemote", url);
             if(result != null) {
@@ -233,12 +253,27 @@ export function startWorker() {
             }
             this.dimensions = await call(this.worker, "dimensions", null);
         },
-        async getVariables() {
+        /**
+         * Get the list of variables.
+         */
+        getVariables() {
             return this.variables;
         },
-        async getDimensions() {
+        /**
+         * Get the list of dimensions for the file.
+         * These dimensions may not be the same for every variable.
+         */
+        getDimensions() {
             return this.dimensions;
         },
+        /**
+         * Load the values for a given variable starting at the given indices.
+         * This loads all the available values starting at the given indices.
+         *
+         * @param variable the variable to load the data for
+         * @param indices the indices at what location to start loading the data
+         * @returns {Promise<Proxy>}
+         */
         async getValues(variable, ...indices) {
             let values = await call(this.worker, "values", {
                 variable, indices
@@ -246,9 +281,23 @@ export function startWorker() {
             const view = new DataView(values);
             return createProxyForType(view, this.variableTypes[variable]);
         },
+        /**
+         * Get the attribute value for the given name. This currently only supports
+         * string attribute values.
+         *
+         * @param attribute the attribute to get the value for
+         * @returns {Promise<String>} The attribute value
+         */
         async getAttribute(attribute) {
             return await call(this.worker, "attribute", attribute);
         },
+        /**
+         * Gets all the values for a given variable.
+         *
+         * @param variable The variable to get the data for
+         * @param length The expected amount of values
+         * @returns {Promise<Proxy>} The data array
+         */
         async getVariableValues(variable, length) {
             let values = await call(this.worker, "variableValues", {
                 variable,

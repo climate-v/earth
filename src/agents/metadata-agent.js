@@ -1,5 +1,8 @@
 import { newLoggedAgent } from "./agents";
 
+/**
+ * List of variable names to look for a temperature overlay.
+ */
 const TEMPERATURE_OVERLAY_VARIABLES = [
     "temp"
 ];
@@ -91,6 +94,15 @@ function filterMatchingVariableWithLongName(variables, name) {
     return filterMatchingAttribute("long_name", variables, name);
 }
 
+/*
+ What follows are the selectors for the dimensions. These each test a list of rules
+ to find a matching variable for a specific dimension and pick the first found
+ result. Generally, multiple of the rules will apply to the found variable/dimension
+ but that does not have to be the case. The order itself should not matter much,
+ apart from finding the dimension/variable faster, because there should not be
+ multiple variables that match for the same dimension.
+ */
+
 function findLevitationDimension(dimensions) {
     return findFirstMatching(
         () => filterMatchingAttribute("axis", dimensions, "Z"),
@@ -145,11 +157,15 @@ function findTimeDimension(dimensions) {
     );
 }
 
-function variableHasCorrectDimensions(variable, dimensions) {
-    const dimensionsForVariable = variable.dimensions;
-    return dimensionsForVariable.length === dimensions.length && dimensionsForVariable.every(dim => dimensions.some(dimension => dimension.name === dim));
-}
-
+/**
+ * Try to create a wind overlay from the given list of variables. The wind overlay
+ * is special, as it requires two variables, u and v, to function and only if both
+ * were found will it be created. If found, both of them will be removed from the
+ * given list of variables.
+ *
+ * @param variables The list of open variables
+ * @returns {null|{u: {name}, displayName: string, v: {name}, id: string, type: string}}
+ */
 function createWindOverlay(variables) {
     let uVariable = findUWindVariable(variables);
     let vVariable = findVWindVariable(variables);
@@ -170,6 +186,14 @@ function createWindOverlay(variables) {
     }
 }
 
+/**
+ * Try to create a temperature overlay by looking for a temperature variable.
+ * Returns null if no temperature variable was found.
+ * If a variable is found, it will be removed from the list of variables.
+ *
+ * @param variables The list of open variables
+ * @returns {null|{displayName: string, name, id: string, type: string}}
+ */
 function createTempOverlay(variables) {
     const tempVariable = findFirstMatching(
         () => variables.find(variable => TEMPERATURE_OVERLAY_VARIABLES.includes(variable.name)),
@@ -188,6 +212,15 @@ function createTempOverlay(variables) {
     }
 }
 
+/**
+ * Creates a generic overlay for a specific variable.
+ * Will fail and return null if it has mismatched dimensions, i.e. more or unknown dimensions.
+ *
+ * @param variable The variable to create the overlay for
+ * @param allDimensions The dimensions defined in the containing file
+ * @param config Configuration for dimension variables
+ * @returns {{unit: *, displayName, name, id, type: string, definedDimensions: {time: boolean, height: boolean}}|null}
+ */
 function createGenericOverlay(variable, allDimensions, config) {
     const dimensions = variable.dimensions;
     const hasDimensionNotInList = dimensions.some(dim => !allDimensions.some(dimension => dimension.name === dim));
@@ -296,9 +329,19 @@ function getDimensionDirection(values, inverted) {
     }
 }
 
+/**
+ * Builds the metadata collection for the currently loaded data file of the given worker.
+ * That is, it collects the dimensions and variables and makes then accessible under a
+ * common name (because they usually have different names in the files). It also figures
+ * out if the data file uses a regular or irregular grid, configuring the dimensions
+ * accordingly.
+ *
+ * @param worker The worker with the file loaded
+ * @returns {Promise<{irregular: null, title: *, availableOverlays: *[], centerName: *, dimensions: {latitude: {unit: *, size, values: *, name, range: *[]}, time: {size, values: *, name}, levitation: {unit: *, size, values: *, name, direction: string}, longitude: {unit: *, size, values: *, name, range: *[]}}}>}
+ */
 export async function buildMetadata(worker) {
-    const dimensions = await worker.getDimensions();
-    const variables = await worker.getVariables();
+    const dimensions = worker.getDimensions();
+    const variables = worker.getVariables();
 
     const centerName = await worker.getAttribute("institution");
     const title = await worker.getAttribute("title");

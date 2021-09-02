@@ -13,6 +13,14 @@ export async function loadFile(worker, file) {
     };
 }
 
+/**
+ * Tries to load a file from a remote location (usually HTTP url).
+ *
+ * @param worker The worker to load the file with
+ * @param filename The URL to get the file from
+ * @returns {Promise<{source: {path, type: string}, worker}|null>} Promise for the result of the load, which will be null if
+ *      it failed
+ */
 export async function downloadFile(worker, filename) {
     report.status("Downloading...")
     const result = await worker.loadRemote(filename);
