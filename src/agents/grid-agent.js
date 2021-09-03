@@ -66,6 +66,7 @@ export async function buildGrids(configuration, worker) {
     }));
 
     log.time("build grids");
+    report.status("");
 
     if(builtProducts.length === 0) {
         return new EmptyGridSelection();

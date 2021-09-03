@@ -342,6 +342,7 @@ function buildRenderer(mesh, globe) {
     });
 
     log.timeEnd("rendering map");
+    report.status("");
     return "ready";
 }
 
