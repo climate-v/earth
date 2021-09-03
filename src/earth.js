@@ -908,13 +908,6 @@ function init() {
             if(typeof file === 'string') {
                 configuration.save({ file });
             } else {
-                // Only accept `nc`/NetCDF files for now. This should be moved to the
-                // head-scratcher once it can return a representative error.
-                if(!file.name.endsWith(".nc")) {
-                    report.error("Did not detect a NetCDF file.");
-                    return;
-                }
-
                 fileAgent.submit(loadFile, worker, file);
             }
         }

@@ -3,14 +3,22 @@ import { newLoggedAgent } from "./agents";
 
 export async function loadFile(worker, file) {
     report.status("Loading file...");
-    await worker.load(file);
-    return {
-        worker,
-        source: {
-            type: "local",
-            path: file.name
+    try {
+        await worker.load(file);
+        return {
+            worker,
+            source: {
+                type: "local",
+                path: file.name
+            }
+        };
+    } catch(ex) {
+        if(ex === "InvalidFile") {
+            throw "The given file is not a NetCDF file.";
+        } else {
+            throw ex;
         }
-    };
+    }
 }
 
 /**
@@ -23,18 +31,22 @@ export async function loadFile(worker, file) {
  */
 export async function downloadFile(worker, filename) {
     report.status("Downloading...")
-    const result = await worker.loadRemote(filename);
-    if(result != null) {
-        report.error("Could not load remote file: " + result);
-        return null;
-    }
-    return {
-        worker,
-        source: {
-            type: "remote",
-            path: filename
+    try {
+        await worker.loadRemote(filename);
+        return {
+            worker,
+            source: {
+                type: "remote",
+                path: filename
+            }
+        };
+    } catch (ex) {
+        if(ex === "InvalidFile") {
+            throw "The given file is not a NetCDF file.";
+        } else {
+            throw "Could not load remote file: " + ex;
         }
-    };
+    }
 }
 
 /**
