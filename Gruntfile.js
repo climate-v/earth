@@ -6,7 +6,7 @@ module.exports = function(grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON("package.json"),
         jshint: {
-            files: ["*.js", "public/libs/earth/**/*.js"],
+            files: ["*.js", "src/**/*.js"],
             options: {
                 // ignores: [""],
                 globals: {
@@ -18,7 +18,7 @@ module.exports = function(grunt) {
                     require: false,
                     __dirname: false
                 },
-                globalstrict: true
+                esversion: '9'
             }
         }
     });
