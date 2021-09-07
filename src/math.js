@@ -43,13 +43,6 @@ export function proportion(x, low, high) {
     return (clamp(x, low, high) - low) / (high - low);
 }
 
-/**
- * @returns {number} the value p within the range [0, 1], scaled to the range [low, high].
- */
-export function spread(p, low, high) {
-    return p * (high - low) + low;
-}
-
 export function radiansToDegrees(radians) {
     return radians * (180 / Math.PI);
 }

@@ -75,13 +75,6 @@ function filterMatchingAttribute(attribute, list, value) {
     });
 }
 
-function filterHasAttribute(attribute, list) {
-    return list.find(variable => {
-        const value = variable.attributes[attribute];
-        return value !== "";
-    });
-}
-
 function filterMatchingVariableWithUnit(dimensions, unit) {
     return filterMatchingAttribute("units", dimensions, unit);
 }
