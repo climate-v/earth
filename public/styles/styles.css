@@ -266,6 +266,26 @@ body {
     align-items: center;
 }
 
+#beta-info {
+    position: absolute;
+    top: 2%;
+    right: 2%;
+    background-color: rgba(5, 10, 30, 0.85);
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+#beta-info p {
+    font-size: 1em;
+}
+
+#beta-info a {
+    text-align: right;
+    margin-left: auto;
+}
+
 /**************************************************************************************************
  * SVG Element Styling
  **************************************************************************************************/
