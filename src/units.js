@@ -1,3 +1,20 @@
+/*
+    units - providing unit conversions and unit matching
+    Copyright (C) 2021  Tim Hagemann
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 export const LEVITATION_UNITS = [
     "hPa",
     "Pa",
@@ -58,6 +75,8 @@ export function findMatchingUnitConversions(unit, min, max) {
             toKelvinConversion = (x) => (x - 32) / 1.8 + 273.15;
         }
 
+        const kelvinMin = toKelvinConversion(min);
+        const kelvinMax = toKelvinConversion(max);
         return TEMPERATURE_UNITS.map(units => {
             return {
                 ...units,
@@ -65,11 +84,25 @@ export function findMatchingUnitConversions(unit, min, max) {
                     const kelvin = toKelvinConversion(x);
                     return units.conversion(kelvin);
                 },
-                precision: findRequiredPrecision(units.conversion(min), units.conversion(max))
+                precision: findRequiredPrecision(units.conversion(kelvinMin), units.conversion(kelvinMax))
             }
         });
     } else if(unit === "m") {
         return DISTANCE_UNITS;
+    } else if(unit === "ft") {
+        const conversion = (x) => x / 3.2808;
+        const meterMin = conversion(min);
+        const meterMax = conversion(max);
+        return DISTANCE_UNITS.map(units => {
+            return {
+                ...units,
+                conversion: (x) => {
+                    const meter = conversion(x);
+                    return units.conversion(meter);
+                },
+                precision: findRequiredPrecision(units.conversion(meterMin), units.conversion(meterMax))
+            }
+        });
     }
 
     return [{
