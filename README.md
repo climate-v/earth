@@ -3,10 +3,10 @@ earth
 
 "earth" is a project to visualize netcdf data files.
 
-An instance of "earth" is available at [https://datasets.earth](https://datasets.earth).
+An instance of "earth" is available at [https://netcdf.earth](https://netcdf.earth).
 
-This project is a based on the original software ["earth"](https://github.com/cambecc/earth) made by Cameron Beccario. It has 
-been extended to handle netcdf files provided by users directly in the browser without any preparation and served directly 
+This project is a based on the original software ["earth"](https://github.com/cambecc/earth) made by Cameron Beccario. It has
+been extended to handle netcdf files provided by users directly in the browser without any preparation and served directly
 from the user.
 
 Building and launching
