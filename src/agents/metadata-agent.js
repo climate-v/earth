@@ -116,7 +116,9 @@ function filterMatchingVariableWithLongName(variables, name) {
 function findLevitationDimension(dimensions) {
     return findFirstMatching(
         () => filterMatchingAttribute("axis", dimensions, "Z"),
-        () => filterMatchingVariableWithStandardName(dimensions, "height")
+        () => filterMatchingVariableWithStandardName(dimensions, "height"),
+        () => dimensions.find(dimension => dimension.name === "plev"),
+        () => dimensions.find(dimension => dimension.name === "lev")
     );
 }
 
@@ -153,11 +155,17 @@ function findCLonDimension(variables) {
 }
 
 function findUWindVariable(variables) {
-    return filterMatchingVariableWithStandardName(variables, "eastward_wind");
+    return findFirstMatching(
+        () => filterMatchingVariableWithLongName(variables, "eastward_wind"),
+        () => filterMatchingVariableWithStandardName(variables, "eastward_wind")
+    );
 }
 
 function findVWindVariable(variables) {
-    return filterMatchingVariableWithStandardName(variables, "northward_wind");
+    return findFirstMatching(
+        () => filterMatchingVariableWithLongName(variables, "northward_wind"),
+        () => filterMatchingVariableWithStandardName(variables, "northward_wind")
+    );
 }
 
 function findTimeDimension(dimensions) {
