@@ -571,15 +571,16 @@ export function buildGrid(builder) {
     }
 
     function interpolate(λ, φ) {
-        if(λ < λ0 || λ > λ1) {
-            return null;
-        } else if(φ < φ1 || φ > φ0) {
-            return null;
-        }
+        // if(λ < λ0 || λ > λ1) {
+        //     console.log("Out of range Lon");
+        //     return null;
+        // } else if(φ < φ1 || φ > φ0) {
+        //     console.log("Out of range Lat");
+        //     return null;
+        // }
 
         var i = floorMod(λ - λ0, 360) / Δλ;  // calculate longitude index in wrapped range [0, 360)
         var j = (φ0 - φ) / Δφ;                   // calculate latitude index in direction +90 to -90
-
         //         1      2           After converting λ and φ to fractional grid indexes i and j, we find the
         //        fi  i   ci          four points "G" that enclose point (i, j). These points are at the four
         //         | =1.4 |           corners specified by the floor and ceiling of i and j. For example, given

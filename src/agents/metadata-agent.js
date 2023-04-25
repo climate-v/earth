@@ -301,7 +301,7 @@ function getAvailableOverlays(allVariables, dimensions, config, irregularConfig)
 
     overlays.push(...customOverlays);
 
-    console.log("Fond overlays", overlays);
+    console.log("Found overlays", overlays);
 
     return overlays;
 }
