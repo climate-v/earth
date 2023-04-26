@@ -117,8 +117,13 @@ function findLevitationDimension(dimensions) {
     return findFirstMatching(
         () => filterMatchingAttribute("axis", dimensions, "Z"),
         () => filterMatchingVariableWithStandardName(dimensions, "height"),
+        () => filterMatchingVariableWithUnit(dimensions, "Pascal"),
+        () => filterMatchingVariableWithUnit(dimensions, "millibar"),
+        () => filterMatchingVariableWithUnit(dimensions, "hPa"),
+        () => filterMatchingVariableWithUnit(dimensions, "Pa"),
         () => dimensions.find(dimension => dimension.name === "plev"),
-        () => dimensions.find(dimension => dimension.name === "lev")
+        () => dimensions.find(dimension => dimension.name === "lev"),
+        () => dimensions.find(dimension => dimension.name === "level")
     );
 }
 
@@ -171,6 +176,7 @@ function findVWindVariable(variables) {
 function findTimeDimension(dimensions) {
     return findFirstMatching(
         () => filterMatchingAttribute("axis", dimensions, "T"),
+        () => filterMatchingVariableWithLongName(dimensions, "Time"),
         () => filterMatchingVariableWithStandardName(dimensions, "time")
     );
 }
