@@ -57,6 +57,8 @@ const WorkerState = {
     getVariables() {
         return this.file.get_variables();
     },
+    // Actual interaction with the head-scratcher.
+    // Maybe interesting to directly add index selection from head-scratcher
     getDimensions() {
         return this.file.get_dimensions();
     },

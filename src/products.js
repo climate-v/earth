@@ -398,6 +398,8 @@ const FACTORIES = {
         },
         create: function(attr, metadata) {
             const overlayDef = metadata.availableOverlays.find(overlay => overlay.id === attr.overlayType);
+
+            // Builds the indices for the visualisation purpose
             const indices = [];
             if(metadata.irregular != null) {
                 indices.push(0); // Ncells
@@ -446,6 +448,7 @@ const FACTORIES = {
                         const grid = gridDescription.createGrid();
 
                         const cellCount = metadata.irregular.cellCount;
+                        // Gathers the data based on name and index position
                         const dataValues = await worker.getValues(overlayDef.name, ...indices);
 
                         for(let i = 0; i < cellCount; i++) {

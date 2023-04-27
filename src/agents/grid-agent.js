@@ -77,6 +77,7 @@ export class GridSelection {
 export async function buildGrids(configuration, worker) {
     report.status("Building grid...");
     log.time("build grids");
+    // Builds the actual grid based on changes in the view
     const selectedProducts = productsFor(configuration.attributes, metadataAgent.value());
     const builtProducts = await Promise.all(selectedProducts.map(async product => {
         return await product.build(worker, fileAgent.value());

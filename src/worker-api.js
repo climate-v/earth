@@ -286,6 +286,7 @@ export function startWorker() {
         /**
          * Load the values for a given variable starting at the given indices.
          * This loads all the available values starting at the given indices.
+         * Actually loads the data based on the index position
          *
          * @param variable the variable to load the data for
          * @param indices the indices at what location to start loading the data

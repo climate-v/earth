@@ -1087,6 +1087,7 @@ function init() {
         }
 
         stopCurrentAnimation(true);
+        // Rebuilds the metadata for the visualization since the file has been updated
         metadataAgent.submit(buildMetadata, worker);
     });
 
@@ -1095,6 +1096,7 @@ function init() {
     });
 
     gridAgent.listenTo(configuration, "change", function() {
+        // Checks for differences in the web UI configuration
         const changed = _.keys(configuration.changedAttributes());
         // Ignore building grid for now if we don't have a file yet or if the file got changed (and needs redownloading)
         if(changed.includes("file") || fileAgent.value() == null) {
